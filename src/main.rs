@@ -62,6 +62,26 @@ impl Field {
         Field{interior, size, neighbours}
     }
 
+    fn ring(outer_radius: usize, inner_radius: usize) -> Field {
+        let size = (2*outer_radius + 1, 2*outer_radius + 1);
+
+        let mut interior = vec![vec![false; 2*outer_radius + 1]; 2*outer_radius + 1];
+
+        let outer_radius = outer_radius as i32;
+        let inner_radius = inner_radius as i32;
+        let (x_center, y_center) = (outer_radius, outer_radius);
+
+        for x in 0..(2*outer_radius + 1) {
+            for y in 0..(2*outer_radius + 1) {
+                interior[y as usize][x as usize] =
+                        (x - x_center).pow(2) + (y - y_center).pow(2) <= outer_radius.pow(2) &&
+                        (x - x_center).pow(2) + (y - y_center).pow(2) >= inner_radius.pow(2);
+            }
+        }
+        let neighbours = Field::compute_neighbours(&interior, size);
+        Field{interior, size, neighbours}
+    }
+
     fn is_inside(&self, (x, y): (usize, usize)) -> bool {
         x < self.size.0 && y < self.size.1 && self.interior[y][x]
     }
@@ -73,109 +93,158 @@ enum RelaxationStrategy {
     ArrayTraversing,
 }
 
+// todo rewrite as generic
+struct BufferedStack {
+    stacks: Vec<Vec<(usize, usize)>>,
+    stacks_tops: Vec<usize>,
+    current_stack: usize,
+    next_stack: usize,
+}
+
+impl BufferedStack {
+    fn new(stacks_count: usize) -> BufferedStack {
+        assert_ne!(stacks_count, 0);
+        let stacks: Vec<Vec<(usize, usize)>> = vec![Vec::new(); stacks_count];
+        let stacks_tops: Vec<usize> = vec![0; stacks_count];
+        let current_stack = 0;
+        let next_stack = (current_stack + 1) % stacks.len();
+        BufferedStack{stacks, stacks_tops, current_stack, next_stack}
+    }
+
+    fn push(&mut self, (x, y): (usize, usize), stack_index: usize) {
+        let top = self.stacks_tops[stack_index];
+        let stack = &mut self.stacks[stack_index];
+        if top >= stack.len() {
+            stack.push((x, y));
+            // println!("{} {}", self.next_stack, top);
+        } else {
+            stack[top] = (x, y);
+        }
+        self.stacks_tops[stack_index] += 1;
+        // println!("push {:?} {:?}", stack, (x, y));
+    }
+
+    fn push_next(&mut self, (x, y): (usize, usize)) {
+        let stack_index = self.next_stack;
+        self.push((x, y), stack_index);
+    }
+
+    fn push_current(&mut self, (x, y): (usize, usize)) {
+        let stack_index = self.current_stack;
+        self.push((x, y), stack_index);
+    }
+
+    fn pop(&mut self, stack_index: usize) -> Option<(usize, usize)> {
+        let top = self.stacks_tops[stack_index];
+        let stack = &mut self.stacks[stack_index];
+        // println!("pop {:?}. {:?}", stack, top);
+
+        if top == 0 {
+            None
+        } else {
+            self.stacks_tops[stack_index] -= 1;
+            Some(stack[top - 1])
+        }
+    }
+
+    fn pop_current(&mut self) -> Option<(usize, usize)> {
+        let stack_index = self.current_stack;
+        self.pop(stack_index)
+    }
+
+    fn pop_next(&mut self) -> Option<(usize, usize)> {
+        let stack_index = self.next_stack;
+        self.pop(stack_index)
+    }
+
+    fn is_empty_current(&self) -> bool {
+        self.stacks_tops[self.current_stack] == 0
+    }
+
+    fn is_empty_next(&self) -> bool {
+        self.stacks_tops[self.next_stack] == 0
+    }
+
+    fn swap(&mut self) {
+        self.current_stack = self.next_stack;
+        self.next_stack = (self.current_stack + 1) % self.stacks.len()
+    }
+}
+
 
 
 pub struct SandPile {
     field: Field,
     sand: Vec<Vec<u32>>,
-    stack: Vec<(usize, usize)>,
-    relaxation_strategy: RelaxationStrategy,
+    stack: BufferedStack,
     is_relaxed: bool,
+    in_stack: Vec<Vec<bool>>,
 }
 
 impl SandPile {
     fn new(field: Field, sand_level: u32) -> SandPile {
         let (x_max, y_max) = field.size;
         let sand = vec![vec![sand_level; x_max]; y_max];
-        let mut stack: Vec<(usize, usize)> = Vec::new();
-        let relaxation_strategy = RelaxationStrategy::ArrayTraversing;
+        let mut in_stack = vec![vec![false; x_max]; y_max];
+        let mut stack = BufferedStack::new(2);
         let is_relaxed = sand_level <= 3;
-
-        SandPile {field, sand, stack, relaxation_strategy, is_relaxed}
-    }
-
-    fn build_stack(&mut self) {
-        self.stack = Vec::new();
-        for x in 0..self.field.size.0 {
-            for y in 0..self.field.size.1 {
-                if self.field.is_inside((x, y)) && self.sand[y][x] > 3 {
-                    self.stack.push((x, y))
+        if ! is_relaxed {
+            for x in 0..x_max {
+                for y in 0..y_max {
+                    if field.is_inside((x, y)) {
+                        stack.push_current((x, y));
+                        in_stack[y][x] = true;
+                    }
                 }
             }
         }
+
+
+        SandPile {field, sand, stack, is_relaxed, in_stack}
     }
 
-    fn topple(&mut self) {
+    fn topple(&mut self, topples_lim: u64) {
         if self.is_relaxed() {
             return;
         }
 
-        let FIELD_SIZE =  self.field.size.0 * self.field.size.1;
-        let relaxation_strategy = self.relaxation_strategy.clone();
-        /*
-        match self.relaxation_strategy {
-            ref ArrayTraversing => println!("1"),
-            ref Stack => println!("2")
-        };
-        */
+        // println!("topple");
+        let mut topples_count: u64 = 0;
 
-        match relaxation_strategy {
-            RelaxationStrategy::ArrayTraversing => {
-                let mut topplings_count = 0;
-                for x in 0..self.field.size.0 {
-                    for y in 0..self.field.size.1 {
-                        if self.field.is_inside((x, y)) && self.sand[y][x] > 3 {
-                            topplings_count += 1;
-                            self.sand[y][x] -= 4;
+        while let Some((x, y)) = self.stack.pop_current() {
+            if self.sand[y][x] > 3 {
+                self.sand[y][x] -= 4;
+                topples_count += 1;
 
-                            for (x_neighbor, y_neighbor) in self.field.neighbours[y][x].iter() {
-                                self.sand[*y_neighbor][*x_neighbor] += 1;
-                            }
-                        }
+                if self.sand[y][x] > 3 {
+                    self.stack.push_current((x, y));
+                } else {
+                    self.in_stack[y][x] = false;
+                }
+
+                for (x_neighbor, y_neighbor) in self.field.neighbours[y][x].iter() {
+                    self.sand[*y_neighbor][*x_neighbor] += 1;
+                    if  self.sand[*y_neighbor][*x_neighbor] > 3 &&
+                        ! self.in_stack[*y_neighbor][*x_neighbor] {
+                        self.stack.push_current((*x_neighbor, *y_neighbor));
+                        self.in_stack[*y_neighbor][*x_neighbor] = true;
                     }
                 }
 
-                // println!("ArrayTraversing {} {}", topplings_count, FIELD_SIZE);
-                self.is_relaxed = topplings_count == 0;
-
-                if topplings_count < FIELD_SIZE / 8 {
-                    println!("Change strategy to Stack {} {}", topplings_count, FIELD_SIZE);
-                    self.build_stack();
-                    self.relaxation_strategy = RelaxationStrategy::Stack;
-                }
-            },
-            RelaxationStrategy::Stack => {
-
-                // println!("Stack");
-                let mut new_stack: Vec<(usize, usize)> = Vec::new();
-
-                while let Some((x, y)) = self.stack.pop() {
-                    if self.sand[y][x] > 3 {
-                        self.sand[y][x] -= 4;
-
-                        for (x_neighbor, y_neighbor) in self.field.neighbours[y][x].iter() {
-                            self.sand[*y_neighbor][*x_neighbor] += 1;
-                            if self.sand[*y_neighbor][*x_neighbor] > 3 {
-                                new_stack.push((*x_neighbor, *y_neighbor))
-                            }
-                        }
-                    }
-                }
-
-                self.stack = new_stack;
-                self.is_relaxed = self.stack.is_empty();
-
-                if self.stack.len() > FIELD_SIZE {
-                    self.relaxation_strategy = RelaxationStrategy::ArrayTraversing;
+                if topples_count > topples_lim {
+                    break;
                 }
             }
         }
+
+        // self.stack.swap();
+        self.is_relaxed = self.stack.is_empty_current();
     }
 
 
     fn relax(&mut self) {
         while ! self.is_relaxed() {
-            self.topple();
+            self.topple(100);
         }
     }
 
@@ -186,13 +255,13 @@ impl SandPile {
     fn add_grains(&mut self, (x, y): (usize, usize), count: u32) {
         if self.field.is_inside((x, y)) {
             self.sand[y][x] += count;
-            if self.sand[y][x] > 3 {
-                self.stack.push((x, y));
+            if self.sand[y][x] > 3 && ! self.in_stack[y][x] {
+                self.in_stack[y][x] = true;
+                self.stack.push_current((x, y));
                 self.is_relaxed = false;
             }
         }
     }
-
 }
 
 
@@ -300,7 +369,7 @@ impl Visualizer {
                     self.app.render(&r, &sand_pile.sand);
                 }
             }
-            sand_pile.topple();
+            sand_pile.topple(1_000_000);
         }
     }
 
@@ -321,6 +390,7 @@ fn compute_identity(field: &Field, visualizer: &mut Visualizer) {
     visualizer.visualize_relaxation(&mut sand_pile1);
     sand_pile2 = &sand_pile2 - &sand_pile1;
     visualizer.visualize_relaxation(&mut sand_pile2);
+    visualizer.loop_draw(&sand_pile2);
 }
 
 
@@ -344,7 +414,7 @@ fn main() {
 
     let mut visualizer = Visualizer {app, window};
 
-    let field = Field::square(400);
+    let field = Field::square(300);
 
     compute_identity(&field, &mut visualizer);
 
