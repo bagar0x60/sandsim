@@ -31,7 +31,7 @@ fn main() {
 
 
     let lattice = HexagonLattice::new();
-    let region = Rectangle::new(200.0, 200.0);
+    let region = Rectangle::new(1000.0, 1000.0);
     let mut model = SandPileModel::new(region, lattice);
     let mut controller = SandPileController::new(model);
     let mut view = SandPileView::new();
@@ -39,9 +39,8 @@ fn main() {
 
     controller.clear_sand();
     controller.max_stable();
-    let node_idx = controller.model.embedding.coords_to_node([45.0, 45.0, 0.0]);
-    controller.model.graph.nodes[node_idx].sand.set(6);
-
+    controller.add_sand([300.0, 300.0, 0.0], 1);
+    // controller.add_sand([700.0, 200.0, 0.0], 1);
 
     while let Some(e) = events.next(&mut window) {
         view.event(&e, &mut controller);

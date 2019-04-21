@@ -23,7 +23,7 @@ impl SandPileView {
 
     pub fn event<E: GenericEvent>(&mut self, e: &E, controller: &mut SandPileController) {
         if let Some(_) = e.update_args() {
-            controller.topple();
+            controller.topple(1000000);
         }
 
         // some others shit
@@ -38,18 +38,19 @@ impl SandPileView {
         const BLUE1: [f32; 4] = [0.6, 0.6, 1.0, 1.0];
         const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
 
-        let square_size: f64 = ((args.height as f64) / (200.0 as f64))
-            .min((args.width as f64) / (200.0 as f64));
+        let square_size: f64 = ((args.height as f64) / (1000.0 as f64))
+            .min((args.width as f64) / (1000.0 as f64));
 
         let square = rectangle::square(0.0, 0.0, square_size);
 
         for node_idx in model.graph.non_sink_nodes() {
-            let sand_count = &model.graph.nodes[node_idx].sand;
-            let colour = match sand_count.get()  {
-                0 => WHITE,
-                1 => BLUE1,
+            let degree = model.graph.nodes[node_idx].degree;
+            let sand_count = model.graph.nodes[node_idx].sand.get();
+            let colour = match degree - sand_count {
+                _ if degree - sand_count > 3  => WHITE,
+                3 => BLUE1,
                 2 => BLUE2,
-                3 => BLUE3,
+                1 => BLUE3,
                 _ => BLACK
             };
 
