@@ -31,7 +31,7 @@ fn main() {
 
 
     let lattice = HexagonLattice::new();
-    let region = Rectangle::new(1000.0, 1000.0);
+    let region = Rectangle::new(20.0, 20.0);
     let mut model = SandPileModel::new(region, lattice);
     let mut controller = SandPileController::new(model);
     let mut view = SandPileView::new();
@@ -39,7 +39,7 @@ fn main() {
 
     controller.clear_sand();
     controller.max_stable();
-    controller.add_sand([300.0, 300.0, 0.0], 1);
+    controller.add_sand([2.0, 2.0, 0.0], 1);
     // controller.add_sand([700.0, 200.0, 0.0], 1);
 
     while let Some(e) = events.next(&mut window) {
@@ -47,9 +47,10 @@ fn main() {
 
         if let Some(args) = e.render_args() {
             gl.draw(args.viewport(), |c, g| {
-                use graphics::{clear};
+                use graphics::*;
 
                 clear([1.0; 4], g);
+
                 view.draw(args, &c, g, &controller.model);
             });
         }
