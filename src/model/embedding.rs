@@ -29,4 +29,12 @@ impl EmbeddingToR3 {
 
         min_node_idx
     }
+
+    pub fn swap_xy(&self) -> Self {
+        let mut new_nodes_coordinates: Vec<math::Vec3d> = Vec::new();
+        for [x, y, z] in &self.nodes_coordinates {
+            new_nodes_coordinates.push([*y, *x, *z]);
+        }
+        EmbeddingToR3 { nodes_coordinates: new_nodes_coordinates }
+    }
 }
