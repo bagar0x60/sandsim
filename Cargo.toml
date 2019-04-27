@@ -8,8 +8,16 @@ authors = ["bagar0x60 <leha969696@yandex.ru>"]
 name = "sandsim"
 
 [dependencies]
-piston = "0.37.0"
-piston2d-graphics = "0.26.0"
-pistoncore-glutin_window = "0.47.0"
-piston2d-opengl_graphics = "0.53.0"
+piston = "0.42.0"
+piston2d-graphics = "0.30.0"
+pistoncore-glutin_window = "0.54.0"
+piston2d-opengl_graphics = "0.59.0"
 vecmath = "0.3.1"
+piston_window = "0.89.0"
+camera_controllers = "0.27.0"
+gfx = "0.17.1"
+shader_version = "0.3.0"
+gfx_device_gl = "0.15.5"
+
+rand = "0.6.5"
+

@@ -2,10 +2,10 @@ use graphics::math;
 use graphics::math::rotate_radians;
 
 // Cuboid with vertices in (0, 0, 0) and v1
-pub type Cuboid = math::Vec3d<f64>;
+pub type Cuboid = math::Vec3d<f32>;
 
 pub trait Region {
-    fn is_point_inside_region(&self, point: &math::Vec3d) -> bool;
+    fn is_point_inside_region(&self, point: &math::Vec3d<f32>) -> bool;
     fn cuboid_hull(&self) -> Cuboid;
 }
 
@@ -14,17 +14,17 @@ pub struct Rectangle {
 }
 
 pub struct Circle {
-    radius: f64,
+    radius: f32,
 }
 
 impl Rectangle {
-    pub fn new(x_size: f64, y_size: f64) -> Rectangle {
+    pub fn new(x_size: f32, y_size: f32) -> Rectangle {
         Rectangle {hull: [x_size, y_size, 0.0]}
     }
 }
 
 impl Region for Rectangle {
-    fn is_point_inside_region(&self, point: &math::Vec3d) -> bool {
+    fn is_point_inside_region(&self, point: &math::Vec3d<f32>) -> bool {
         let [x, y, _] = point;
         let [x_size, y_size, _] = &self.hull;
 
@@ -37,13 +37,13 @@ impl Region for Rectangle {
 }
 
 impl Circle {
-    pub fn new(radius: f64) -> Circle {
+    pub fn new(radius: f32) -> Circle {
         Circle {radius}
     }
 }
 
 impl Region for Circle {
-    fn is_point_inside_region(&self, point: &math::Vec3d) -> bool {
+    fn is_point_inside_region(&self, point: &math::Vec3d<f32>) -> bool {
         let [x, y, _] = point;
 
 

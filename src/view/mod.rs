@@ -1,17 +1,41 @@
+pub mod camera;
+
+extern crate rand;
+
 use piston::input::{GenericEvent, RenderArgs, Button};
 use graphics::{Context, Graphics};
 use model::SandPileModel;
 use controller::SandPileController;
-// use vecmath::{vec3_add, vec3_sub, vec2_sub};
 use graphics::math;
 use model::region::Cuboid;
+use self::camera::CameraController;
+use piston_window::{PistonWindow, OpenGLWindow};
+use camera_controllers::model_view_projection;
+use gfx;
+use gfx::{Resources, Slice, PipelineState};
+use gfx::handle::Buffer;
+use gfx_device_gl::Resources as GfxResources;
 
-pub struct Camera {
-    zoom: f64,
-    center: math::Vec2d,
-    temp_shift: math::Vec2d,
+gfx_vertex_struct!( Vertex {
+    a_pos: [f32; 3] = "a_pos",
+});
+
+gfx_pipeline!( pipe {
+    vbuf: gfx::VertexBuffer<Vertex> = (),
+    u_model_view_proj: gfx::Global<[[f32; 4]; 4]> = "u_model_view_proj",
+    a_color: gfx::Global<[f32; 4]> = "a_color",
+    out_color: gfx::RenderTarget<gfx::format::Srgba8> = "o_color",
+    out_depth: gfx::DepthTarget<gfx::format::DepthStencil> = gfx::preset::depth::LESS_EQUAL_WRITE,
+});
+
+impl Vertex {
+    fn new(a_pos: [f32; 3]) -> Vertex {
+        Vertex { a_pos }
+    }
 }
 
+
+/*
 pub struct SandPileView {
     camera: Camera,
     // Why the hell should i store this value?
@@ -20,18 +44,107 @@ pub struct SandPileView {
     left_click_position: math::Vec2d,
     left_mouse_pressed: bool,
 }
+*/
 
+pub struct SandPileView<C: CameraController> {
+    figures:  Vec<(Buffer<GfxResources, Vertex>, Slice<GfxResources>)>,
+    pso: PipelineState<GfxResources, pipe::Meta>,
+    camera: C,
+}
+
+use opengl_graphics::{GLSL, OpenGL};
+use shader_version::Shaders;
+use piston::window::Window;
+use gfx::Factory;
+use gfx::traits::FactoryExt;
+
+impl<C: CameraController> SandPileView<C> {
+    pub fn new<F: FactoryExt<GfxResources>>(factory: &mut F,
+               model: &SandPileModel,
+               opengl: OpenGL,
+               camera: C) -> SandPileView<C> {
+
+        let mut figures: Vec<(Buffer<GfxResources, Vertex>, Slice<GfxResources>)> = Vec::new();
+        for figure_data in &model.embedding.unique_figures {
+            // let mut vertex_data: Vec<Vertex> = Vec::new();
+            let vertex_data: Vec<Vertex> = figure_data.vertices
+                .iter()
+                .map(|&v| { Vertex::new(v) })
+                .collect();
+            let index_data: Vec<u32> = figure_data.indexes
+                .iter()
+                .map(|&x| {x as u32})
+                .collect();
+            let figure = factory
+                .create_vertex_buffer_with_slice(&vertex_data, &index_data[..]);
+            figures.push(figure);
+        }
+
+        let glsl = opengl.to_glsl();
+        let pso = factory.create_pipeline_simple(
+            Shaders::new()
+                .set(GLSL::V1_50, include_str!("../../shaders/main_150.glslv"))
+                .get(glsl).unwrap().as_bytes(),
+            Shaders::new()
+                .set(GLSL::V1_50, include_str!("../../shaders/main_150.glslf"))
+                .get(glsl).unwrap().as_bytes(),
+            pipe::new()
+        ).unwrap();
+
+        SandPileView { camera, figures, pso }
+    }
+
+    pub fn event<E: GenericEvent>(&mut self, e: &E, controller: &mut SandPileController) {
+        self.camera.event(e);
+
+        if let Some(_) = e.update_args() {
+            controller.topple(1000000);
+        }
+    }
+
+
+    pub fn draw<W: Window>(&self, window: &mut PistonWindow<W>, args: RenderArgs, sandpile_model: &SandPileModel) {
+        use camera_controllers::CameraPerspective;
+        use vecmath;
+
+        window.encoder.clear(&window.output_color, [1.0, 1.0, 1.0, 1.0]);
+        window.encoder.clear_depth(&window.output_stencil, 1.0);
+
+        let draw_size = window.window.draw_size();
+
+        let model = vecmath::mat4_id();
+        let mut projection = CameraPerspective {
+            fov: 90.0, near_clip: 0.1, far_clip: 1000.0,
+            aspect_ratio: (draw_size.width as f32) / (draw_size.height as f32)
+        }.projection();
+
+        let (vbuf, slice) = &self.figures[0];
+
+
+        let mut data = pipe::Data {
+            vbuf: vbuf.clone(),
+            u_model_view_proj: [[0.0; 4]; 4],
+            a_color: [0.3, 0.3, 0.3, 1.0],
+            out_color: window.output_color.clone(),
+            out_depth: window.output_stencil.clone(),
+        };
+
+        data.u_model_view_proj = model_view_projection(
+            model,
+            self.camera.camera(args.ext_dt).orthogonal(),
+            projection
+        );
+        window.encoder.draw(slice, &self.pso, &data);
+    }
+
+}
+
+
+/*
 impl Camera {
     pub fn new() -> Camera {
         Camera {zoom: 956.0 / 1000.0, center: [0.0; 2], temp_shift: [0.0; 2]}
     }
-
-    /*
-    pub fn set_zoom_to_fill_window(cuboid_hull: Cuboid) -> Camera {
-        let zoom = 1.0 / std::max(cuboid_hull[0], cuboid_hull[1]);
-        Camera {zoom, center: [0.0; 2], temp_shift: [0.0; 2]}
-    }
-    */
 
     fn zoom(&mut self, coefficient: f64) {
         self.zoom += 0.1*coefficient*(self.zoom + 1.0);
@@ -50,7 +163,11 @@ impl Camera {
         math::add(self.center, self.temp_shift)
     }
 }
+*/
 
+
+
+/*
 impl SandPileView {
     pub const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
     pub const BLUE3: [f32; 4] = [0.0, 0.0, 0.8, 1.0];
@@ -99,7 +216,7 @@ impl SandPileView {
     pub fn draw<G: Graphics>(&self, args: RenderArgs, context: &Context, gl: &mut G, model: &SandPileModel) {
         use graphics::*;
 
-        // println!("{} {} {} {}", args.height, args.width, args.draw_height, args.draw_width);
+
 
         let [x_center, y_center] = self.camera.get_center();
         let context = context.zoom(self.camera.zoom).trans(-x_center, -y_center);
@@ -142,3 +259,4 @@ impl SandPileView {
         }
     }
 }
+*/

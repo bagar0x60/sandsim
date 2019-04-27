@@ -19,8 +19,8 @@ impl SandPileController {
         SandPileController { model, stack, is_in_stack, need_update_stack}
     }
 
-    pub fn add_sand(&mut self, coords: math::Vec3d, sand_count: i32) {
-        let node_idx = self.model.embedding.coords_to_node(coords);
+    pub fn add_sand(&mut self, coords: math::Vec3d<f32>, sand_count: i32) {
+        let node_idx = self.model.embedding.get_node_by_coords(coords);
         let sand = &self.model.graph.nodes[node_idx].sand;
         sand.set(sand.get() + sand_count);
     }
