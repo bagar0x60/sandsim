@@ -4,10 +4,9 @@ pub mod lattice;
 pub mod region;
 
 use self::embedding::EmbeddingToR3;
-use self::sand_graph::{SandGraph, NodeIndex};
+use self::sand_graph::{SandGraph};
 use self::region::Region;
-use self::lattice::Lattice2D;
-use graphics::math;
+use self::lattice::Lattice;
 
 pub struct SandPileModel {
     pub graph: SandGraph,
@@ -15,12 +14,12 @@ pub struct SandPileModel {
 }
 
 impl SandPileModel {
-    pub fn new<L: Lattice2D, R: Region>(region: R, lattice: L) -> SandPileModel {
+    pub fn new<L: Lattice, R: Region>(region: R, lattice: L) -> SandPileModel {
         let mut new_graph = SandGraph::new();
         let mut new_embedding = EmbeddingToR3::new();
 
         let cuboid_hull = region.cuboid_hull();
-        let lattice_inside_hull = lattice.get_lattice_2d(&cuboid_hull);
+        let lattice_inside_hull = lattice.get_lattice(&cuboid_hull);
         let old_graph: SandGraph = lattice_inside_hull.graph;
         let old_embedding: EmbeddingToR3 = lattice_inside_hull.embedding;
 

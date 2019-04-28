@@ -4,17 +4,14 @@ use super::region::Cuboid;
 use super::sand_graph::{SandGraph, NodeIndex};
 use super::embedding::{ EmbeddingToR3, Figure };
 
-pub trait Lattice2D {
-    fn get_lattice_2d(&self, cuboid_hull: &Cuboid) -> SandPileModel;
-}
-
-pub trait Lattice3D {
-    fn get_lattice_3d(cuboid_hull: &Cuboid) -> SandPileModel;
+pub trait Lattice {
+    fn get_lattice(&self, cuboid_hull: &Cuboid) -> SandPileModel;
 }
 
 pub struct SquareLattice {}
 pub struct HexagonLattice {}
 pub struct TriangleLattice {}
+pub struct CubeLattice {}
 
 impl SquareLattice {
     pub fn new() -> SquareLattice {
@@ -22,26 +19,10 @@ impl SquareLattice {
     }
 }
 
-impl Lattice2D for SquareLattice{
-    fn get_lattice_2d(&self, cuboid_hull: &Cuboid) -> SandPileModel {
-        // build figures
-        /*
-        pub struct Figure {
-            pub vertices: Vec<math::Vec3d<f32>>,
-            pub indexes: Vec<usize>,
-        */
-        let vertices: Vec<math::Vec3d<f32>> = vec![
-            [0.0, 0.0, 0.0],
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0]
-        ];
-        let indexes: Vec<usize> = vec![0, 1, 2];
-        let figure = Figure { vertices, indexes };
-
-
-
-        let x_size = (cuboid_hull[0] as usize);
-        let y_size = (cuboid_hull[1] as usize);
+impl Lattice for SquareLattice{
+    fn get_lattice(&self, cuboid_hull: &Cuboid) -> SandPileModel {
+        let x_size = cuboid_hull[0] as usize;
+        let y_size = cuboid_hull[1] as usize;
         let edges_count = x_size*y_size;
 
         let coords_to_index = |x: usize, y: usize| -> NodeIndex { y*x_size + x + 1};
@@ -54,7 +35,11 @@ impl Lattice2D for SquareLattice{
 
         let mut neighbours: [NodeIndex; 4];
         let mut embedding = EmbeddingToR3::new();
+
+        let radius = (0.5_f32).powf(0.5);
+        let figure = Figure::polygon_on_circle(radius, 4, 45.0, 90.0);
         embedding.add_figure(figure);
+
 
         for x in 0..x_size {
             for y in 0..y_size {
@@ -72,11 +57,9 @@ impl Lattice2D for SquareLattice{
                 embedding.set_node_info(this_node, [x as f32, y as f32, 0.0], 0);
             }
         }
-
         SandPileModel {graph: sand_graph, embedding }
     }
 }
-
 
 impl HexagonLattice {
     pub fn new() -> HexagonLattice {
@@ -84,13 +67,17 @@ impl HexagonLattice {
     }
 }
 
-impl Lattice2D for HexagonLattice {
-    fn get_lattice_2d(&self, cuboid_hull: &Cuboid) -> SandPileModel {
+impl Lattice for HexagonLattice {
+    fn get_lattice(&self, cuboid_hull: &Cuboid) -> SandPileModel {
         let x_size = cuboid_hull[0];
         let y_size = cuboid_hull[1];
 
         let mut sand_graph = SandGraph::new();
         let mut embedding = EmbeddingToR3::new();
+
+        let radius = 1.0 / (3_f32).powf(0.5);
+        let figure = Figure::polygon_on_circle(radius, 6, 30.0, 60.0);
+        embedding.add_figure(figure);
 
         let mut nodes_arrangement_scheme: Vec<Vec<NodeIndex>> = Vec::new();
 
@@ -155,19 +142,27 @@ impl TriangleLattice {
     }
 }
 
-impl Lattice2D for TriangleLattice {
-    fn get_lattice_2d(&self, cuboid_hull: &Cuboid) -> SandPileModel {
+impl Lattice for TriangleLattice {
+    fn get_lattice(&self, cuboid_hull: &Cuboid) -> SandPileModel {
         let x_size = cuboid_hull[0];
         let y_size = cuboid_hull[1];
-
-        let mut sand_graph = SandGraph::new();
-        let mut embedding = EmbeddingToR3::new();
-
-        let mut nodes_arrangement_scheme: Vec<Vec<NodeIndex>> = Vec::new();
 
         // with triangle side equal to 3^0.5, distance between triangles centers is equal to 1.0
         let triangle_side = (3.0_f32).powf(0.5);
         let X = triangle_side * (3.0_f32).powf(0.5) / 6.0;
+
+        let mut sand_graph = SandGraph::new();
+        let mut embedding = EmbeddingToR3::new();
+
+        let radius = 2.0*X;
+        let figure1 = Figure::polygon_on_circle(radius, 3, 90.0, 120.0);
+        let figure2 = Figure::polygon_on_circle(radius, 3, 30.0, 120.0);
+        embedding.add_figure(figure1);
+        embedding.add_figure(figure2);
+
+        let mut nodes_arrangement_scheme: Vec<Vec<NodeIndex>> = Vec::new();
+
+
 
         let mut iy: usize = 0;
         loop {
@@ -200,7 +195,8 @@ impl Lattice2D for TriangleLattice {
                 }
 
                 let node_idx = sand_graph.add_node();
-                embedding.set_node_info(node_idx, [x, y, 0.0], 0);
+                let figure_idx = iy % 2;
+                embedding.set_node_info(node_idx, [x, y, 0.0], figure_idx);
                 nodes_arrangement_scheme[iy].push(node_idx);
                 ix += 1;
             }
@@ -237,3 +233,74 @@ impl Lattice2D for TriangleLattice {
     }
 }
 
+impl CubeLattice {
+    pub fn new() -> Self {
+        CubeLattice {}
+    }
+}
+
+impl Lattice for CubeLattice {
+    fn get_lattice(&self, cuboid_hull: &Cuboid) -> SandPileModel {
+        let x_size = cuboid_hull[0] as usize;
+        let y_size = cuboid_hull[1] as usize;
+        let z_size = cuboid_hull[2] as usize;
+        let edges_count = x_size*y_size*z_size;
+
+        let coords_to_index =
+            |x: usize, y: usize, z: usize| { z*x_size*y_size + y*x_size + x + 1};
+
+        let mut sand_graph = SandGraph::new();
+        let mut embedding = EmbeddingToR3::new();
+
+        let s = 0.5_f32;  // half of side length
+        let vertices = vec![
+            [-s, -s, s], [-s, s, s], [s, s, s], [s, -s, s],         // up square
+            [-s, -s, -s], [-s, s, -s], [s, s, -s], [s, -s, -s],     // down square
+        ];
+        let indexes = vec![
+            0, 1, 2,  0, 2, 3,  // up
+            4, 5, 6,  4, 6, 7,  // down
+            0, 1, 5,  0, 5, 4,  // left
+            0, 4, 7,  0, 7, 3,  // front
+            3, 7, 6,  3, 6, 2,  // right
+            1, 2, 6,  1, 6, 5,  // far
+        ];
+        let figure = Figure { vertices, indexes };
+        embedding.add_figure(figure);
+
+
+        for _ in 0..edges_count {
+            sand_graph.add_node();
+        }
+        let mut neighbours= [
+            (1, 0, 0),
+            (0, 1, 0),
+            (-1, 0, 0),
+            (0, -1, 0),
+            (0, 0, 1),
+            (0, 0, -1),
+        ];
+        for x in 0..x_size {
+            for y in 0..y_size {
+                for z in 0..z_size {
+                    let this_node_idx = coords_to_index(x, y, z);
+                    for (dx, dy, dz) in neighbours.iter() {
+                        let (nx, ny, nz) = (x as i32 + *dx, y as i32 + *dy, z as i32 + *dz);
+                        let neighbour_node_idx = coords_to_index(nx as usize, ny as usize, nz as usize);
+                        if 0 <= nx && nx < x_size as i32 &&
+                            0 <= ny && ny < y_size as i32 &&
+                            0 <= nz && nz < z_size as i32 {
+                            sand_graph.add_edge(this_node_idx, neighbour_node_idx, 1);
+                        } else {
+                            sand_graph.add_edge(this_node_idx, SandGraph::SINK_NODE, 1);
+                        }
+                    }
+
+                    embedding.set_node_info(this_node_idx, [x as f32, y as f32, z as f32], 0);
+                }
+            }
+        }
+
+        SandPileModel {graph: sand_graph, embedding }
+    }
+}

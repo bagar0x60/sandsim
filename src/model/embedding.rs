@@ -2,9 +2,10 @@ extern crate graphics;
 
 use super::sand_graph::{NodeIndex};
 use self::graphics::math;
+use graphics::math::Vec3d;
 
 pub struct EmbeddingToR3 {
-    nodes_coordinates: Vec<math::Vec3d<f32>>,
+    pub nodes_coordinates: Vec<math::Vec3d<f32>>,
     nodes_figures: Vec<usize>,
     pub unique_figures: Vec<Figure>,
 }
@@ -58,16 +59,29 @@ impl EmbeddingToR3 {
 
         min_node_idx
     }
+}
 
 
-
-    /*
-    pub fn swap_xy(&self) -> Self {
-        let mut new_nodes_coordinates: Vec<math::Vec3d> = Vec::new();
-        for [x, y, z] in &self.nodes_coordinates {
-            new_nodes_coordinates.push([*y, *x, *z]);
+impl Figure {
+    pub fn convex_polygon(vertices: Vec<Vec3d<f32>>) -> Self {
+        assert!(vertices.len() > 2, "convex polygon have to have at least 3 vertices to triangulate");
+        // fan triangulation
+        // 0, 1, 2; 0, 2, 3; 0, 3, 4; ...
+        let mut indexes: Vec<usize> = Vec::new();
+        for i in 1..vertices.len() - 1 {
+            indexes.append(&mut vec![0, i, i + 1]);
         }
-        EmbeddingToR3 { nodes_coordinates: new_nodes_coordinates }
+
+        Figure { vertices, indexes }
     }
-    */
+
+    pub fn polygon_on_circle(radius: f32, vertices_count: usize, angle_offset: f32, angle_between: f32) -> Self {
+        let mut vertices: Vec<math::Vec3d<f32>> = Vec::new();
+        for i in 0..vertices_count {
+            let alpha_degees = angle_offset + angle_between*(i as f32);
+            let alpha = alpha_degees.to_radians();
+            vertices.push([radius*alpha.cos(), radius*alpha.sin(), 0.0])
+        }
+        Figure::convex_polygon(vertices)
+    }
 }
