@@ -41,7 +41,7 @@ fn main() {
     let lattice = SemiRegularLattice::new(vec![4, 3, 3, 4, 3]);
     // let lattice = HexagonLattice::new();
     // let region = Parallelepiped::new(200.0, 200.0, 100.0);
-    let side = 200.0_f32;
+    let side = 100.0_f32;
     let region = Rectangle::new(side, side);
 
     let [cx, cy, _] = region.cuboid_hull();
