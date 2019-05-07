@@ -20,6 +20,10 @@ pub struct Circle {
     radius: f32,
 }
 
+pub struct Hexagon {
+    side: f32,
+}
+
 impl Rectangle {
     pub fn new(x_size: f32, y_size: f32) -> Rectangle {
         Rectangle {hull: [x_size, y_size, 0.0]}
@@ -74,5 +78,25 @@ impl Region for Parallelepiped {
 
     fn cuboid_hull(&self) -> Cuboid {
         self.hull.clone()
+    }
+}
+
+impl Hexagon {
+    pub fn new(side: f32) -> Self {
+        Hexagon { side }
+    }
+}
+
+impl Region for Hexagon {
+    fn is_point_inside_region(&self, point: &math::Vec3d<f32>) -> bool {
+        let [x, y, _] = point;
+        let s3 = 3_f32.powf(0.5);
+        let [x, y] = [x / self.side - 1.0, y / self.side - s3/2.0];
+        y + s3*x < s3 && y - s3*x < s3 && -y + s3*x < s3 && -y - s3*x < s3 && -s3 / 2.0 < y && y < s3 / 2.0
+
+    }
+
+    fn cuboid_hull(&self) -> Cuboid {
+        [2.0*self.side, 3_f32.powf(0.5)*self.side, 0.0]
     }
 }

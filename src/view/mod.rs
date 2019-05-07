@@ -34,6 +34,7 @@ impl Vertex {
 pub struct SandPileView<C: CameraController> {
     figures:  Vec<(Buffer<GfxResources, Vertex>, Slice<GfxResources>)>,
     pso: PipelineState<GfxResources, pipe::Meta>,
+    view_projection: vecmath::Matrix4<f32>,
     camera: C,
 }
 
@@ -81,11 +82,22 @@ impl<C: CameraController> SandPileView<C> {
             pipe::new()
         ).unwrap();
 
-        SandPileView { camera, figures, pso }
+        SandPileView { camera, figures, pso, view_projection: vecmath::mat4_id() }
+    }
+
+    pub fn get_veiw_projection(&self) -> vecmath::Matrix4<f32> {
+        self.view_projection
     }
 
     pub fn event<E: GenericEvent>(&mut self, e: &E, controller: &mut SandPileController) {
         self.camera.event(e);
+
+        /*
+        if let Some(Button::Mouse(Left)) = e.press_args() {
+            self.left_mouse_pressed = true;
+            self.left_click_position = self.current_cursor_position.clone();
+        }
+        */
 
         if let Some(_) = e.update_args() {
             controller.topple(1000000);
@@ -93,7 +105,7 @@ impl<C: CameraController> SandPileView<C> {
     }
 
 
-    pub fn draw<W: Window>(&self, window: &mut PistonWindow<W>, args: RenderArgs, sandpile_model: &SandPileModel) {
+    pub fn draw<W: Window>(&mut self, window: &mut PistonWindow<W>, args: RenderArgs, sandpile_model: &SandPileModel) {
         use camera_controllers::CameraPerspective;
 
         let draw_size = window.window.draw_size();
@@ -110,6 +122,8 @@ impl<C: CameraController> SandPileView<C> {
 
         let view = self.camera.camera(args.ext_dt).orthogonal();
 
+        self.view_projection = vecmath::col_mat4_mul(projection, view);
+
         for node_idx in sandpile_model.graph.non_sink_nodes() {
             let degree = sandpile_model.graph.nodes[node_idx].degree;
             let sand_count = sandpile_model.graph.nodes[node_idx].sand.get();
@@ -117,7 +131,7 @@ impl<C: CameraController> SandPileView<C> {
 
 
             if degree - sand_count == 1 {
-                continue;
+                // continue;
             }
 
 
@@ -140,7 +154,7 @@ impl<C: CameraController> SandPileView<C> {
             ];
             let model = vecmath::mat4_transposed(model);
 
-            let u_model_view_proj = model_view_projection(model, view, projection);
+            let u_model_view_proj = vecmath::col_mat4_mul(self.view_projection, model);
             let a_color = color;
 
 

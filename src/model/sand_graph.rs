@@ -3,18 +3,23 @@ pub type EdgeIndex = usize;
 
 use std::cell::Cell;
 
+
+#[derive(Debug)]
 pub struct NodeData {
     pub sand: Cell<i32>,
     pub degree: i32,
     first_outgoing_edge: Option<EdgeIndex>
 }
 
+
+#[derive(Debug)]
 pub struct EdgeData {
     weight: i32,
     target: NodeIndex,
     next_outgoing_edge: Option<EdgeIndex>
 }
 
+#[derive(Debug)]
 pub struct SandGraph {
     pub nodes: Vec<NodeData>,
     pub edges: Vec<EdgeData>,

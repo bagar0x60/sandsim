@@ -8,6 +8,7 @@ use self::sand_graph::{SandGraph};
 use self::region::Region;
 use self::lattice::Lattice;
 
+#[derive(Debug)]
 pub struct SandPileModel {
     pub graph: SandGraph,
     pub embedding: EmbeddingToR3,
@@ -50,5 +51,21 @@ impl SandPileModel {
         new_embedding.unique_figures = old_embedding.unique_figures;
 
         SandPileModel {graph: new_graph, embedding: new_embedding }
+    }
+
+    pub fn transpose(&mut self) {
+        use graphics::math;
+
+        for node_idx in self.graph.non_sink_nodes() {
+            let ([x, y, z], figure_idx) = self.embedding.get_node_info(node_idx);
+            self.embedding.set_node_info(node_idx, [y, x, z], figure_idx);
+        }
+
+        for figure_idx in 0..self.embedding.unique_figures.len() {
+            let figure = &mut self.embedding.unique_figures[figure_idx];
+            let new_vertices: Vec<math::Vec3d<f32>> =
+                figure.vertices.iter().map(|[x, y, z]| [*y, *x, *z]).collect();
+            figure.vertices = new_vertices;
+        }
     }
 }

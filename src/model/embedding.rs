@@ -4,13 +4,14 @@ use super::sand_graph::{NodeIndex};
 use self::graphics::math;
 use graphics::math::Vec3d;
 
+#[derive(Debug)]
 pub struct EmbeddingToR3 {
     pub nodes_coordinates: Vec<math::Vec3d<f32>>,
     nodes_figures: Vec<usize>,
     pub unique_figures: Vec<Figure>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Figure {
     pub vertices: Vec<math::Vec3d<f32>>,
     pub indexes: Vec<usize>,

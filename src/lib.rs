@@ -10,6 +10,7 @@ extern crate gfx;
 extern crate shader_version;
 extern crate opengl_graphics;
 extern crate gfx_device_gl;
+extern crate regex;
 
 pub mod model;
 pub mod view;

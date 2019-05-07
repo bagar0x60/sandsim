@@ -1,12 +1,11 @@
+use super::Lattice;
+
 use graphics::math;
 use model::SandPileModel;
-use super::region::Cuboid;
-use super::sand_graph::{SandGraph, NodeIndex};
-use super::embedding::{ EmbeddingToR3, Figure };
+use model::region::Cuboid;
+use model::sand_graph::{SandGraph, NodeIndex};
+use model::embedding::{ EmbeddingToR3, Figure };
 
-pub trait Lattice {
-    fn get_lattice(&self, cuboid_hull: &Cuboid) -> SandPileModel;
-}
 
 pub struct SquareLattice {}
 pub struct HexagonLattice {}
@@ -19,7 +18,7 @@ impl SquareLattice {
     }
 }
 
-impl Lattice for SquareLattice{
+impl Lattice for SquareLattice {
     fn get_lattice(&self, cuboid_hull: &Cuboid) -> SandPileModel {
         let x_size = cuboid_hull[0] as usize;
         let y_size = cuboid_hull[1] as usize;
