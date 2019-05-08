@@ -14,7 +14,7 @@ use glutin_window::GlutinWindow;
 use opengl_graphics::{ GlGraphics, OpenGL };
 
 use sandsim::{model::SandPileModel, view::SandPileView, controller::SandPileController};
-use sandsim::model::{lattice::{SquareLattice, HexagonLattice, TriangleLattice, CubeLattice, SemiRegularLattice},
+use sandsim::model::{lattice::{SquareLattice, HexagonLattice, TriangleLattice, CubeLattice, SemiRegularLattice, KUniformLattice},
                      region::{Rectangle, Circle, Parallelepiped, Hexagon}};
 use sandsim::view::camera::{ OrbitZoomCamera, OrbitZoomCameraSettings, FirstPerson, FirstPersonSettings, Camera2d };
 use piston_window::{PistonWindow, OpenGLWindow, AdvancedWindow};
@@ -38,11 +38,15 @@ fn main() {
         .ups(10)
         .max_fps(5));
 
-    let lattice = SemiRegularLattice::new(vec![4, 3, 3, 4, 3]);
+    // let lattice = SemiRegularLattice::new(vec![4, 3, 3, 4, 3]);
     // let lattice = HexagonLattice::new();
+    let lattice = KUniformLattice::new();
+
+
     // let region = Parallelepiped::new(200.0, 200.0, 100.0);
-    let side = 100.0_f32;
-    let region = Rectangle::new(side, side);
+    let side = 150.0_f32;
+    // let region = Rectangle::new(side, side);
+    let region = Circle::new(side / 2.0);
 
     let [cx, cy, _] = region.cuboid_hull();
 
@@ -73,7 +77,7 @@ fn main() {
     // println!("{:#?}", controller.model);
 
 
-    controller.add_sand([0.3*side, 0.3*side, 0.0], 1);
+    controller.add_sand([0.4*side, 0.4*side, 0.0], 1);
 
     //controller.add_sand([0.8*side, 0.8*side, 0.0], 1);
     //controller.add_sand([0.7*side, 0.2*side, 0.0], 1);

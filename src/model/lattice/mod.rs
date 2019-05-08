@@ -3,7 +3,7 @@ mod uniform_lattice;
 mod utils;
 
 pub use self::regular_lattice::{SquareLattice, TriangleLattice, HexagonLattice, CubeLattice};
-pub use self::uniform_lattice::{SemiRegularLattice};
+pub use self::uniform_lattice::{SemiRegularLattice, KUniformLattice};
 
 use graphics::math;
 use model::SandPileModel;

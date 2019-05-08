@@ -131,7 +131,7 @@ impl<C: CameraController> SandPileView<C> {
 
 
             if degree - sand_count == 1 {
-                // continue;
+                continue;
             }
 
 

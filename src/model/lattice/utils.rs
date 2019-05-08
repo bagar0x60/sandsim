@@ -25,6 +25,7 @@ pub(super) struct FigureGeometricInfo {
     pub rotate: usize,
     pub side_size: f32,
     pub sides_count: usize,
+    pub vertices: Vec<(math::Vec3d<f32>, usize)>,
 }
 
 #[derive(Debug)]
@@ -37,10 +38,20 @@ use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::TrySendError::Full;
 
 #[derive(Debug)]
-pub(super) struct UniformTilingBuilder {
+pub(super) struct UniformTiling {
+    pub side_size: f32,
     pub figures: Vec<FigureGeometricInfo>,
     pub vertices_info: Vec<(math::Vec3d<f32>, VertexFigures)>,
 }
+
+pub(super) struct Constructor {
+    pub tiling: UniformTiling
+}
+
+
+// --------------- implementations
+
+
 
 use regex::Regex;
 impl VertexFigures {
@@ -177,29 +188,38 @@ impl FigureGeometricInfo {
     pub fn new(position: math::Vec3d<f32>, rotate: usize, side_size: f32, sides_count: usize) -> Self {
         let rotate = rotate % FULL_CIRCLE;
         let alpha = (FULL_CIRCLE / 2 - FULL_CIRCLE / sides_count) % FULL_CIRCLE;
+        let beta = FULL_CIRCLE / 2 - alpha;
         let r = side_size / (2.0 * (to_radians(alpha)  / 2.0).cos() );
         let gamma = rotate + alpha / 2;
         let gamma_rad = to_radians(gamma);
         let center = vecmath::vec3_add([r*gamma_rad.cos(), r*gamma_rad.sin(), 0.0], position);
-        FigureGeometricInfo { center, rotate, sides_count, side_size, r, alpha, beta: FULL_CIRCLE / 2 - alpha }
+        let vertices = Self::compute_vertices(rotate, alpha, beta, sides_count, center, r);
+
+        FigureGeometricInfo { center, rotate, sides_count, side_size, r, alpha, beta, vertices }
     }
 
-    pub fn vertices(&self) -> Vec<(math::Vec3d<f32>, usize)> {
+    fn compute_vertices(rotate: usize,
+                        alpha: usize,
+                        beta: usize,
+                        sides_count: usize,
+                        center: math::Vec3d<f32>,
+                        r: f32
+    ) -> Vec<(math::Vec3d<f32>, usize)> {
         let mut result: Vec<(math::Vec3d<f32>, usize)> = Vec::new();
 
-        let mut gamma = (self.rotate + self.alpha / 2 + FULL_CIRCLE / 2)  % FULL_CIRCLE;
-        let mut rotate = self.rotate;
-        for i in 0..self.sides_count {
+        let mut gamma = (rotate + alpha / 2 + FULL_CIRCLE / 2)  % FULL_CIRCLE;
+        let mut rotate = rotate;
+        for i in 0..sides_count {
             let gamma_rad = to_radians(gamma);
             let position =  vecmath::vec3_add(
-                self.center,
-                [self.r*gamma_rad.cos(), self.r*gamma_rad.sin(), 0.0]
+                center,
+                [r*gamma_rad.cos(), r*gamma_rad.sin(), 0.0]
             );
 
             result.push((position, rotate));
 
-            gamma = (gamma + self.beta) % FULL_CIRCLE;
-            rotate = (rotate + self.beta) % FULL_CIRCLE;
+            gamma = (gamma + beta) % FULL_CIRCLE;
+            rotate = (rotate + beta) % FULL_CIRCLE;
         }
 
         result
@@ -207,73 +227,23 @@ impl FigureGeometricInfo {
 }
 
 
-fn add_figure(nodes_info: &mut Vec<(math::Vec3d<f32>, VertexFigures)>,
-              figure: FigureGeometricInfo,
-              sand_graph: &mut SandGraph,
-              embedding: &mut EmbeddingToR3,
-              unique_figures: &mut HashMap<(usize, usize), usize>) {
-
-    let graph_node_idx = sand_graph.add_node();
-
-    let figure_key = (figure.sides_count, figure.rotate % (FULL_CIRCLE / figure.sides_count));
-    let mut figure_index = 0;
-    if ! unique_figures.contains_key(&figure_key) {
-        let gamma = figure.rotate + figure.alpha / 2 + FULL_CIRCLE / 2;
-        let figure_polygon =
-            Figure::polygon_on_circle(figure.r, figure.sides_count,
-                                      360.0*(gamma as f32) / (FULL_CIRCLE as f32),
-                                      360.0*(figure.beta as f32) / (FULL_CIRCLE as f32));
-        figure_index = embedding.add_figure(figure_polygon);
-        unique_figures.insert(figure_key, figure_index);
-    } else {
-        figure_index = *unique_figures.get(&figure_key).unwrap();
-    }
-
-    embedding.set_node_info(graph_node_idx, figure.center, figure_index);
-
-    let pretty_close = |v1: Vec3d<f32>, v2: Vec3d<f32>| {
-        vecmath::vec3_len(vecmath::vec3_sub(v1, v2)) < 0.001
-    };
-
-
-    for (pos1, rotate) in figure.vertices() {
-        let figure_node_info = FigureVertexInfo { angle: rotate, sides_count: figure.sides_count, figure_idx: graph_node_idx};
-        let mut is_vertex_exist = false;
-
-        for (pos2, nodes_figures) in nodes_info.iter_mut() {
-            if pretty_close(pos1, *pos2) {
-                nodes_figures.add(figure_node_info);
-                is_vertex_exist = true;
-                break;
-            }
-        }
-
-        if ! is_vertex_exist {
-            let mut node_figures = VertexFigures::new();
-            node_figures.add(figure_node_info);
-            nodes_info.push((pos1, node_figures));
-        }
-    }
-}
-
-
-impl UniformTilingBuilder {
-    pub fn new() -> Self {
+impl UniformTiling {
+    pub fn new(side_size: f32) -> Self {
         let vertices_info: Vec<(math::Vec3d<f32>, VertexFigures)> = Vec::new();
         let figures: Vec<FigureGeometricInfo> = Vec::new();
 
-        UniformTilingBuilder { vertices_info, figures }
+        UniformTiling { vertices_info, figures, side_size }
     }
 
     pub fn add_figure(&mut self, figure: FigureGeometricInfo) {
         let figure_idx = self.figures.len();
 
-        for (pos1, rotate) in figure.vertices() {
-            let figure_node_info = FigureVertexInfo { angle: rotate, sides_count: figure.sides_count, figure_idx};
+        for (pos1, rotate) in &figure.vertices {
+            let figure_node_info = FigureVertexInfo { angle: *rotate, sides_count: figure.sides_count, figure_idx};
             let mut is_vertex_exist = false;
 
             for (pos2, nodes_figures) in self.vertices_info.iter_mut() {
-                if pretty_close(pos1, *pos2) {
+                if pretty_close(*pos1, *pos2) {
                     nodes_figures.add(figure_node_info);
                     is_vertex_exist = true;
                     break;
@@ -283,11 +253,20 @@ impl UniformTilingBuilder {
             if ! is_vertex_exist {
                 let mut vertex_figures = VertexFigures::new();
                 vertex_figures.add(figure_node_info);
-                self.vertices_info.push((pos1, vertex_figures));
+                self.vertices_info.push((*pos1, vertex_figures));
             }
         }
 
         self.figures.push(figure);
+    }
+
+    fn is_there_figure_in_point(&self, point: math::Vec3d<f32>) -> bool {
+        for figure in &self.figures {
+            if pretty_close(figure.center, point) {
+                return true;
+            }
+        }
+        false
     }
 
     pub fn build(&self) -> SandPileModel {
@@ -370,3 +349,112 @@ impl UniformTilingBuilder {
         SandPileModel { graph: sand_graph, embedding}
     }
 }
+
+
+impl Constructor {
+    pub fn new(side_size: f32, origin_figure_sides_count: usize) -> Self {
+        let mut tiling = UniformTiling::new(side_size);
+        let origin_figure =
+            FigureGeometricInfo::new([0.0, 0.0, 0.0], 0, side_size, origin_figure_sides_count);
+        tiling.add_figure(origin_figure);
+
+        Constructor { tiling }
+    }
+
+    pub fn add(&mut self, figure_idx: usize, side_idx: usize, sides_count: usize) {
+        let other_figure_sides_count = self.tiling.figures[figure_idx].sides_count;
+        let other_figure_alpha = self.tiling.figures[figure_idx].alpha;
+        let vertex_idx = (side_idx + 1) % other_figure_sides_count;
+
+        let (position, other_rotate) = self.tiling.figures[figure_idx].vertices[vertex_idx];
+        let rotate = (other_rotate + other_figure_alpha) % FULL_CIRCLE;
+
+        let new_figure = FigureGeometricInfo::new(position, rotate, self.tiling.side_size, sides_count);
+        self.tiling.add_figure(new_figure);
+    }
+
+    pub fn get_vector(&self, figure_idx_1: usize, figure_idx_2: usize) -> math::Vec3d<f32> {
+        let v1 = self.tiling.figures[figure_idx_1].center;
+        let v2 = self.tiling.figures[figure_idx_2].center;
+
+        vecmath::vec3_sub(v2, v1)
+    }
+}
+
+fn get_vectors_limits(v1: math::Vec3d<f32>, v2: math::Vec3d<f32>, cuboid_hull: &Cuboid) -> ((f32, f32), (f32, f32)) {
+    let ([x1, y1, _], [x2, y2, _]) = (v1, v2);
+
+    let a = [
+        [x1, x2],
+        [y1, y2]
+    ];
+
+    let a_det = a[0][0]*a[1][1] - a[0][1]*a[1][0];
+    assert!(a_det.abs() > 0.0001, "Determinant of two vectors is too small, they are probably collinear");
+
+    let a_inv = [
+        [a[1][1] / a_det, -a[0][1] / a_det],
+        [-a[1][0] / a_det, a[0][0] / a_det]
+    ];
+
+    let [x_size, y_size, _] = *cuboid_hull;
+
+    let  (mut v1_min, mut v1_max) = (std::f32::MAX, std::f32::MIN);
+    let (mut v2_min, mut v2_max) = (std::f32::MAX, std::f32::MIN);
+
+    let cuboid_vertices = [(0.0, 0.0), (0.0, y_size), (x_size, 0.0), (x_size, y_size)];
+    for (x, y) in cuboid_vertices.iter() {
+        let x_new = *x*a_inv[0][0] + *y*a_inv[0][1];
+        let y_new = *x*a_inv[1][0] + *y*a_inv[1][1];
+
+        v1_min = x_new.min(v1_min);
+        v1_max = x_new.max(v1_max);
+
+        v2_min = y_new.min(v2_min);
+        v2_max = y_new.max(v2_max);
+    }
+
+    ((v1_min, v1_max), (v2_min, v2_max))
+}
+
+pub(super) fn continue_tiling_by_translation(uniform_tiling: &mut UniformTiling,
+                                      translation_vectors: (math::Vec3d<f32>, math::Vec3d<f32>),
+                                      cuboid_hull: &Cuboid) {
+    let (v1, v2) = translation_vectors;
+    println!("{:?}\n {:?}", v1, v2);
+
+    let ((v1_min, v1_max), (v2_min, v2_max)) = get_vectors_limits(v1, v2, cuboid_hull);
+
+
+    let base_figures_count = uniform_tiling.figures.len();
+
+    println!("({}, {}), ({}, {})", v1_min, v1_max, v2_min, v2_max);
+    for i in (v1_min.floor() as i32)..=(v1_max.ceil() as i32) {
+        for j in (v2_min.floor() as i32)..=(v2_max.ceil() as i32) {
+            let translation = vecmath::vec3_add(
+                vecmath::vec3_scale(v1, i as f32),
+                vecmath::vec3_scale(v2, j as f32),
+            );
+
+            if 0.0 <= translation[0] && translation[0] <= cuboid_hull[0] &&
+                0.0 <= translation[1] && translation[1] <= cuboid_hull[1] {
+
+                for figure_idx in 0..base_figures_count {
+                    let center = vecmath::vec3_add(uniform_tiling.figures[figure_idx].center, translation);
+
+                    if ! uniform_tiling.is_there_figure_in_point(center) {
+                        let (position_old, rotate) = uniform_tiling.figures[figure_idx].vertices[0];
+                        let position =  vecmath::vec3_add(position_old, translation);
+                        let side_size = uniform_tiling.side_size;
+                        let sides_count = uniform_tiling.figures[figure_idx].sides_count;
+                        let new_figure = FigureGeometricInfo::new(position, rotate,side_size, sides_count);
+
+                        uniform_tiling.add_figure(new_figure);
+                    }
+                }
+            }
+        }
+    }
+}
+
+
