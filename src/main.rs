@@ -44,7 +44,7 @@ fn main() {
 
 
     // let region = Parallelepiped::new(200.0, 200.0, 100.0);
-    let side = 150.0_f32;
+    let side = 300.0_f32;
     // let region = Rectangle::new(side, side);
     let region = Circle::new(side / 2.0);
 

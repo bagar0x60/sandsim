@@ -45,7 +45,7 @@ impl Lattice for SemiRegularLattice {
         loop {
             let mut new_figures: Vec<FigureGeometricInfo> = Vec::new();
 
-            for (pos, node_figures) in &mut tiling_builder.vertices_info {
+            for (pos, node_figures) in &mut tiling_builder.vertices_info.data {
                 let [x, y, _] = *pos;
                 if 0.0 <= x && x < x_size && 0.0 <= y && y < y_size {
                     let new_figures_partial_info = node_figures.new_figures(&self.tiling_code);

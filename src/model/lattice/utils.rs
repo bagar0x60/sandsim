@@ -40,12 +40,18 @@ use std::sync::mpsc::TrySendError::Full;
 #[derive(Debug)]
 pub(super) struct UniformTiling {
     pub side_size: f32,
-    pub figures: Vec<FigureGeometricInfo>,
-    pub vertices_info: Vec<(math::Vec3d<f32>, VertexFigures)>,
+    pub figures: DataOnPlane<FigureGeometricInfo>,
+    pub vertices_info: DataOnPlane<VertexFigures>,
 }
 
 pub(super) struct Constructor {
     pub tiling: UniformTiling
+}
+
+#[derive(Debug)]
+pub struct DataOnPlane<T> {
+    pub data: Vec<(math::Vec3d<f32>, T)>,
+    plane: HashMap<(i64, i64), Vec<usize>>,
 }
 
 
@@ -100,8 +106,6 @@ impl VertexFigures {
             }
         }
         regex_str += "$";
-
-        //todo println!("{:#?}\n regex: {}", self, regex_str);
 
         Regex::new(&regex_str).unwrap()
     }
@@ -229,44 +233,38 @@ impl FigureGeometricInfo {
 
 impl UniformTiling {
     pub fn new(side_size: f32) -> Self {
-        let vertices_info: Vec<(math::Vec3d<f32>, VertexFigures)> = Vec::new();
-        let figures: Vec<FigureGeometricInfo> = Vec::new();
+        let vertices_info: DataOnPlane<VertexFigures> = DataOnPlane::new();
+        let figures: DataOnPlane<FigureGeometricInfo> = DataOnPlane::new();
 
         UniformTiling { vertices_info, figures, side_size }
     }
 
     pub fn add_figure(&mut self, figure: FigureGeometricInfo) {
-        let figure_idx = self.figures.len();
+        let figure_idx = self.figures.data.len();
 
         for (pos1, rotate) in &figure.vertices {
             let figure_node_info = FigureVertexInfo { angle: *rotate, sides_count: figure.sides_count, figure_idx};
             let mut is_vertex_exist = false;
 
-            for (pos2, nodes_figures) in self.vertices_info.iter_mut() {
-                if pretty_close(*pos1, *pos2) {
-                    nodes_figures.add(figure_node_info);
-                    is_vertex_exist = true;
-                    break;
-                }
-            }
-
-            if ! is_vertex_exist {
+            if let Some(vertex_idx) = self.vertices_info.get_point_by_coords(*pos1) {
+                let (_, vertex_figures) = &mut self.vertices_info.data[vertex_idx];
+                vertex_figures.add(figure_node_info);
+            } else {
                 let mut vertex_figures = VertexFigures::new();
                 vertex_figures.add(figure_node_info);
-                self.vertices_info.push((*pos1, vertex_figures));
+                self.vertices_info.add(*pos1, vertex_figures);
             }
         }
 
-        self.figures.push(figure);
+        self.figures.add(figure.center, figure);
     }
 
     fn is_there_figure_in_point(&self, point: math::Vec3d<f32>) -> bool {
-        for figure in &self.figures {
-            if pretty_close(figure.center, point) {
-                return true;
-            }
+        if let Some(_) = self.figures.get_point_by_coords(point) {
+            true
+        } else {
+            false
         }
-        false
     }
 
     pub fn build(&self) -> SandPileModel {
@@ -276,7 +274,7 @@ impl UniformTiling {
         // add nodes to graph
         let mut figure_idx_to_node_idx: Vec<NodeIndex> = Vec::new();
 
-        for _ in 0..self.figures.len() {
+        for _ in 0..self.figures.data.len() {
             let node_idx = sand_graph.add_node();
             figure_idx_to_node_idx.push(node_idx);
         }
@@ -285,7 +283,7 @@ impl UniformTiling {
         // add figures to embedding
         let mut unique_figures_polygons: HashMap<(usize, usize), usize> = HashMap::new();
 
-        for (figure_idx, figure) in self.figures.iter().enumerate() {
+        for (figure_idx, (_, figure)) in self.figures.data.iter().enumerate() {
             let figure_key = (figure.sides_count, figure.rotate % (FULL_CIRCLE / figure.sides_count));
 
             let mut figure_polygon_idx = 0;
@@ -310,7 +308,7 @@ impl UniformTiling {
         let mut node_neighbours: Vec<HashSet<NodeIndex>> = vec![HashSet::new(); sand_graph.nodes.len()];
         let mut sides_count: Vec<usize> =  vec![0; sand_graph.nodes.len()];
 
-        for (pos, node_figures) in &self.vertices_info {
+        for (_, node_figures) in &self.vertices_info.data {
             if ! node_figures.is_complete() {
                 continue;
             }
@@ -362,11 +360,11 @@ impl Constructor {
     }
 
     pub fn add(&mut self, figure_idx: usize, side_idx: usize, sides_count: usize) {
-        let other_figure_sides_count = self.tiling.figures[figure_idx].sides_count;
-        let other_figure_alpha = self.tiling.figures[figure_idx].alpha;
+        let other_figure_sides_count = self.tiling.figures.data[figure_idx].1.sides_count;
+        let other_figure_alpha = self.tiling.figures.data[figure_idx].1.alpha;
         let vertex_idx = (side_idx + 1) % other_figure_sides_count;
 
-        let (position, other_rotate) = self.tiling.figures[figure_idx].vertices[vertex_idx];
+        let (position, other_rotate) = self.tiling.figures.data[figure_idx].1.vertices[vertex_idx];
         let rotate = (other_rotate + other_figure_alpha) % FULL_CIRCLE;
 
         let new_figure = FigureGeometricInfo::new(position, rotate, self.tiling.side_size, sides_count);
@@ -374,8 +372,8 @@ impl Constructor {
     }
 
     pub fn get_vector(&self, figure_idx_1: usize, figure_idx_2: usize) -> math::Vec3d<f32> {
-        let v1 = self.tiling.figures[figure_idx_1].center;
-        let v2 = self.tiling.figures[figure_idx_2].center;
+        let v1 = self.tiling.figures.data[figure_idx_1].1.center;
+        let v2 = self.tiling.figures.data[figure_idx_2].1.center;
 
         vecmath::vec3_sub(v2, v1)
     }
@@ -421,14 +419,11 @@ pub(super) fn continue_tiling_by_translation(uniform_tiling: &mut UniformTiling,
                                       translation_vectors: (math::Vec3d<f32>, math::Vec3d<f32>),
                                       cuboid_hull: &Cuboid) {
     let (v1, v2) = translation_vectors;
-    println!("{:?}\n {:?}", v1, v2);
 
     let ((v1_min, v1_max), (v2_min, v2_max)) = get_vectors_limits(v1, v2, cuboid_hull);
 
+    let base_figures_count = uniform_tiling.figures.data.len();
 
-    let base_figures_count = uniform_tiling.figures.len();
-
-    println!("({}, {}), ({}, {})", v1_min, v1_max, v2_min, v2_max);
     for i in (v1_min.floor() as i32)..=(v1_max.ceil() as i32) {
         for j in (v2_min.floor() as i32)..=(v2_max.ceil() as i32) {
             let translation = vecmath::vec3_add(
@@ -440,13 +435,13 @@ pub(super) fn continue_tiling_by_translation(uniform_tiling: &mut UniformTiling,
                 0.0 <= translation[1] && translation[1] <= cuboid_hull[1] {
 
                 for figure_idx in 0..base_figures_count {
-                    let center = vecmath::vec3_add(uniform_tiling.figures[figure_idx].center, translation);
+                    let center = vecmath::vec3_add(uniform_tiling.figures.data[figure_idx].1.center, translation);
 
                     if ! uniform_tiling.is_there_figure_in_point(center) {
-                        let (position_old, rotate) = uniform_tiling.figures[figure_idx].vertices[0];
+                        let (position_old, rotate) = uniform_tiling.figures.data[figure_idx].1.vertices[0];
                         let position =  vecmath::vec3_add(position_old, translation);
                         let side_size = uniform_tiling.side_size;
-                        let sides_count = uniform_tiling.figures[figure_idx].sides_count;
+                        let sides_count = uniform_tiling.figures.data[figure_idx].1.sides_count;
                         let new_figure = FigureGeometricInfo::new(position, rotate,side_size, sides_count);
 
                         uniform_tiling.add_figure(new_figure);
@@ -454,6 +449,61 @@ pub(super) fn continue_tiling_by_translation(uniform_tiling: &mut UniformTiling,
                 }
             }
         }
+    }
+}
+
+
+impl<T> DataOnPlane<T> {
+    pub fn new() -> Self {
+        DataOnPlane { data: Vec::new(), plane: HashMap::new() }
+    }
+
+    pub fn get_point_codes(position: Vec3d<f32>) -> [(i64, i64); 4] {
+        let [x, y, _] = position;
+
+        let mut result = [(0, 0); 4];
+        let (x1, y1) = (x.abs().floor() as i64, y.abs().floor() as i64);
+        let mut xs: Vec<i64> = vec![x1];
+        let mut ys: Vec<i64> = vec![y1];
+        if x.fract().abs() > 0.5 {
+            xs.push(x1 + 1);
+        } else {
+            xs.push(x1 - 1);
+        }
+        if y.fract().abs() > 0.5 {
+            ys.push(y1 + 1);
+        } else {
+            ys.push(y1 - 1);
+        }
+
+        [(xs[0], ys[0]), (xs[1], ys[0]), (xs[0], ys[1]), (xs[1], ys[1])]
+    }
+
+    pub fn add(&mut self, position: Vec3d<f32>, d: T) {
+        let d_idx = self.data.len();
+        self.data.push((position, d));
+
+        for code in Self::get_point_codes(position).iter() {
+            if self.plane.contains_key(code) {
+                self.plane.get_mut(code).unwrap().push(d_idx);
+            } else {
+                self.plane.insert(*code, vec![d_idx]);
+            }
+        }
+    }
+
+    fn get_point_by_coords(&self, coords: math::Vec3d<f32>) -> Option<usize> {
+        for code in Self::get_point_codes(coords).iter() {
+            if let Some(points) = self.plane.get(code) {
+                for data_idx in points {
+                    let (pos, _) = &self.data[*data_idx];
+                    if pretty_close(*pos, coords) {
+                        return Some(*data_idx)
+                    }
+                }
+            }
+        }
+        None
     }
 }
 
