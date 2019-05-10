@@ -128,8 +128,6 @@ impl<C: CameraController> SandPileView<C> {
             let degree = sandpile_model.graph.nodes[node_idx].degree;
             let sand_count = sandpile_model.graph.nodes[node_idx].sand.get();
 
-
-
             if degree - sand_count == 1 {
                 continue;
             }
@@ -144,6 +142,7 @@ impl<C: CameraController> SandPileView<C> {
             };
 
             let (coords, figure_idx) = sandpile_model.embedding.get_node_info(node_idx);
+            let (vbuf, slice) = &self.figures[figure_idx];
             let [x, y, z] = coords;
 
             let model = [
@@ -153,8 +152,20 @@ impl<C: CameraController> SandPileView<C> {
                 [0.0, 0.0, 0.0, 1.0]
             ];
             let model = vecmath::mat4_transposed(model);
-
             let u_model_view_proj = vecmath::col_mat4_mul(self.view_projection, model);
+
+            /*
+            let color = match  slice.get_prim_count(gfx::Primitive::TriangleList) {
+                4 =>  Self::BLACK,
+                3 => Self::BLUE3,
+                2 => Self::BLUE2,
+                1 => Self::BLUE1,
+                _ => Self::WHITE
+            };
+            */
+
+
+
             let a_color = color;
 
 

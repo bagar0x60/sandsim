@@ -1,6 +1,8 @@
 mod regular_lattice;
 mod uniform_lattice;
+mod tilings;
 mod utils;
+
 
 pub use self::regular_lattice::{SquareLattice, TriangleLattice, HexagonLattice, CubeLattice};
 pub use self::uniform_lattice::{SemiRegularLattice, KUniformLattice};

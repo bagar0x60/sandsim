@@ -35,16 +35,16 @@ fn main() {
     // window.set_capture_cursor(true);
 
     let mut events = Events::new(EventSettings::new()
-        .ups(10)
-        .max_fps(5));
+        .ups(5)
+        .max_fps(2));
 
-    // let lattice = SemiRegularLattice::new(vec![4, 3, 3, 4, 3]);
+    // let lattice = SemiRegularLattice::new(vec![3, 4, 6, 4]);
     // let lattice = HexagonLattice::new();
     let lattice = KUniformLattice::new();
 
 
     // let region = Parallelepiped::new(200.0, 200.0, 100.0);
-    let side = 300.0_f32;
+    let side = 400.0_f32;
     // let region = Rectangle::new(side, side);
     let region = Circle::new(side / 2.0);
 
@@ -59,7 +59,7 @@ fn main() {
         [cx / 2.0, cy / 2.0, 0.0],
         OrbitZoomCameraSettings::default().zoom_speed(10.0)
     );
-    orbital.distance = 180.0;
+    orbital.distance = side / 1.6;
 
     let camera = orbital;
 
@@ -77,10 +77,10 @@ fn main() {
     // println!("{:#?}", controller.model);
 
 
-    controller.add_sand([0.4*side, 0.4*side, 0.0], 1);
+    controller.add_sand([0.3*side, 0.3*side, 0.0], 1);
 
-    //controller.add_sand([0.8*side, 0.8*side, 0.0], 1);
-    //controller.add_sand([0.7*side, 0.2*side, 0.0], 1);
+    // controller.add_sand([0.8*side, 0.8*side, 0.0], 1);
+    // controller.add_sand([0.7*side, 0.2*side, 0.0], 1);
 
     /*
     controller.add_sand([0.24*side, 0.89*side, 0.0], 1);

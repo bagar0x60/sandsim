@@ -1,4 +1,4 @@
-pub const FULL_CIRCLE: usize = 720;
+pub const FULL_CIRCLE: usize = 720*3*2;
 
 use graphics::math;
 use model::SandPileModel;
@@ -239,7 +239,7 @@ impl UniformTiling {
         UniformTiling { vertices_info, figures, side_size }
     }
 
-    pub fn add_figure(&mut self, figure: FigureGeometricInfo) {
+    pub fn add_figure(&mut self, figure: FigureGeometricInfo) -> usize {
         let figure_idx = self.figures.data.len();
 
         for (pos1, rotate) in &figure.vertices {
@@ -257,6 +257,8 @@ impl UniformTiling {
         }
 
         self.figures.add(figure.center, figure);
+
+        figure_idx
     }
 
     fn is_there_figure_in_point(&self, point: math::Vec3d<f32>) -> bool {
@@ -350,16 +352,18 @@ impl UniformTiling {
 
 
 impl Constructor {
+    const ORIGIN: math::Vec3d<f32> = [0.0, 0.0, 0.0];
+
     pub fn new(side_size: f32, origin_figure_sides_count: usize) -> Self {
         let mut tiling = UniformTiling::new(side_size);
         let origin_figure =
-            FigureGeometricInfo::new([0.0, 0.0, 0.0], 0, side_size, origin_figure_sides_count);
+            FigureGeometricInfo::new(Self::ORIGIN, 0, side_size, origin_figure_sides_count);
         tiling.add_figure(origin_figure);
 
         Constructor { tiling }
     }
 
-    pub fn add(&mut self, figure_idx: usize, side_idx: usize, sides_count: usize) {
+    pub fn add(&mut self, figure_idx: usize, side_idx: usize, sides_count: usize) -> usize {
         let other_figure_sides_count = self.tiling.figures.data[figure_idx].1.sides_count;
         let other_figure_alpha = self.tiling.figures.data[figure_idx].1.alpha;
         let vertex_idx = (side_idx + 1) % other_figure_sides_count;
@@ -368,7 +372,7 @@ impl Constructor {
         let rotate = (other_rotate + other_figure_alpha) % FULL_CIRCLE;
 
         let new_figure = FigureGeometricInfo::new(position, rotate, self.tiling.side_size, sides_count);
-        self.tiling.add_figure(new_figure);
+        self.tiling.add_figure(new_figure)
     }
 
     pub fn get_vector(&self, figure_idx_1: usize, figure_idx_2: usize) -> math::Vec3d<f32> {
