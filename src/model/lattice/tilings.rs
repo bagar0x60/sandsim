@@ -53,7 +53,7 @@ pub(super) fn tiling_2(cuboid_hull: &Cuboid) -> SandPileModel {
 
 pub(super) fn tiling_3(cuboid_hull: &Cuboid) -> SandPileModel {
     // 2-uniform
-    // [3^6; 3^3.4^2]
+    // [3^6; 3^3.4^2]_1
     // pmm, *2222
 
     let mut constructor = Constructor::new(1.0, 4);
@@ -93,7 +93,8 @@ pub(super) fn tiling_4(cuboid_hull: &Cuboid) -> SandPileModel {
 }
 
 pub(super) fn tiling_5(cuboid_hull: &Cuboid) -> SandPileModel {
-    // 2-uniform
+    //
+    // uniform
     // [3^3.4^2; 3^2.4.3.4]_2
     // pgg, 22×
 
@@ -149,6 +150,24 @@ pub(super) fn tiling_6(cuboid_hull: &Cuboid) -> SandPileModel {
 }
 
 pub(super) fn tiling_7(cuboid_hull: &Cuboid) -> SandPileModel {
+    // 3-uniform
+    // [3^3.4^2; 3^2.4.3.4; 4^4]
+    // p4
+
+    let mut constructor = Constructor::new(1.0, 6);
+
+
+    // ((((
+
+
+    let v1 = constructor.get_vector(6, 13);
+    let v2 = constructor.get_vector(5, 14);
+
+    continue_tiling_by_translation(&mut constructor.tiling, (v1, v2), cuboid_hull);
+    constructor.tiling.build()
+}
+
+pub(super) fn tiling_8(cuboid_hull: &Cuboid) -> SandPileModel {
     // 6-uniform
     // [3^6; 3^4.6; 3^3.4^2; 3^2.4.3.4; 3^2.6^2; 3.4^2.6]
     // p31m
@@ -192,6 +211,148 @@ pub(super) fn tiling_7(cuboid_hull: &Cuboid) -> SandPileModel {
 
     let v1 = constructor.get_vector(1, 58);
     let v2 = constructor.get_vector(2, 59);
+
+    continue_tiling_by_translation(&mut constructor.tiling, (v1, v2), cuboid_hull);
+    constructor.tiling.build()
+}
+
+pub(super) fn tiling_9(cuboid_hull: &Cuboid) -> SandPileModel {
+    // 3-uniform
+    // [3^6; 3^2.4.12; 4.6.12]
+    // p3m1
+
+    let mut constructor = Constructor::new(1.0, 12);
+
+    for i in 0..3 {
+        constructor.add(0,  4*i, 4);
+        constructor.add(0,  4*i + 1, 6);
+        constructor.add(0,  4*i + 2, 4);
+    }
+    for i in 0..3 {
+        let idx = constructor.add(0,  4*i + 3, 3);
+        constructor.add(idx,  1, 3);
+        for j in 1..5 {
+            constructor.add(idx + j,  2, 3);
+        }
+    }
+
+    let v1 = constructor.get_vector(4, 9);
+    let v2 = constructor.get_vector(1, 6);
+
+    continue_tiling_by_translation(&mut constructor.tiling, (v1, v2), cuboid_hull);
+    constructor.tiling.build()
+}
+
+
+pub(super) fn tiling_10(cuboid_hull: &Cuboid) -> SandPileModel {
+    // 3-uniform
+    // [3^6; 3^2.4.3.4; 3.4^2.6]
+    // p6m
+
+    let mut constructor = Constructor::new(1.0, 3);
+
+    for i in 0..5 {
+        constructor.add(i,  2, 3);
+    }
+    for i in 0..6 {
+        let idx = constructor.add(i,  1, 4);
+        constructor.add(idx,  3, 3);
+    }
+    for i in 0..6 {
+        let idx = constructor.add(6 + 2*i,  2, 4);
+        constructor.add(idx,  3, 6);
+    }
+
+    let v1 = constructor.get_vector(19, 25);
+    let v2 = constructor.get_vector(21, 29);
+
+    continue_tiling_by_translation(&mut constructor.tiling, (v1, v2), cuboid_hull);
+    constructor.tiling.build()
+}
+
+pub(super) fn tiling_11(cuboid_hull: &Cuboid) -> SandPileModel {
+    // 2-uniform
+    // [3^3.4^2; 3^2.4.3.4]_1
+    // p4g
+
+    let mut constructor = Constructor::new(1.0, 4);
+
+    constructor.add(0,  3, 4);
+    for i in 0..3 {
+        constructor.add(0,  i, 3);
+    }
+    for i in 0..3 {
+        constructor.add(1,  i + 1, 3);
+    }
+    constructor.add(7,  2, 3);
+    constructor.add(8,  1, 4);
+    constructor.add(9,  2, 4);
+
+    constructor.add(9,  3, 3);
+    constructor.add(9,  1, 3);
+    for i in 0..3 {
+        constructor.add(10,  i + 1, 3);
+    }
+    constructor.add(2,  2, 4);
+    constructor.add(4,  1, 4);
+    constructor.add(5,  2, 4);
+    constructor.add(7,  1, 4);
+
+    constructor.add(15,  1, 4);
+    constructor.add(15,  2, 3);
+
+    let v1 = constructor.get_vector(17, 20);
+    let v2 = constructor.get_vector(6, 21);
+
+    continue_tiling_by_translation(&mut constructor.tiling, (v1, v2), cuboid_hull);
+    constructor.tiling.build()
+}
+
+pub(super) fn tiling_12(cuboid_hull: &Cuboid) -> SandPileModel {
+    // 2-uniform
+    // [3^6; 3^4.6]_1
+    // p6m
+
+    let mut constructor = Constructor::new(1.0, 6);
+
+    for i in 0..6 {
+        constructor.add(0, i, 3);
+    }
+    for i in 1..=6 {
+        constructor.add(i, 1, 3);
+        constructor.add(i, 2, 3);
+    }
+
+    let v1 = constructor.get_vector(10, 17);
+    let v2 = constructor.get_vector(12, 7);
+
+    continue_tiling_by_translation(&mut constructor.tiling, (v1, v2), cuboid_hull);
+    constructor.tiling.build()
+}
+
+pub(super) fn tiling_13(cuboid_hull: &Cuboid) -> SandPileModel {
+    // 2-uniform
+    // [3^6; 3^4.6]_2
+    // p6
+
+    let mut constructor = Constructor::new(1.0, 6);
+
+    for i in 0..6 {
+        constructor.add(0, i, 3);
+    }
+    for i in 1..=6 {
+        constructor.add(i, 1, 3);
+        constructor.add(i, 2, 3);
+    }
+    constructor.add(9, 2, 3);
+    let idx = constructor.add(7, 2, 3);
+    assert_eq!(idx, 20);
+    for i in 0..6 {
+        constructor.add(8 + 2*i, 1, 3);
+    }
+
+    let v1 = constructor.get_vector(15, 19);
+    let v2 = constructor.get_vector(13, 20);
 
     continue_tiling_by_translation(&mut constructor.tiling, (v1, v2), cuboid_hull);
     constructor.tiling.build()
