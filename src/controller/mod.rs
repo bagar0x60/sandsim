@@ -2,21 +2,30 @@ use model::SandPileModel;
 use model::sand_graph::{NodeIndex, SandGraph, NodeData};
 use graphics::math;
 
-pub struct SandPileController {
+pub struct SandPileController<'a> {
+    pipeline: Vec<&'a Fn(i32, i32) -> i32>,
     pub model: SandPileModel,
     stack: Vec<NodeIndex>,
     is_in_stack: Vec<bool>,
     need_update_stack: bool,
 }
 
-impl SandPileController {
-    pub fn new(model: SandPileModel) -> SandPileController{
+impl<'a> SandPileController<'a> {
+    pub const TOPPLE_ROUNDS: usize = 10000000;
+
+    pub fn new(model: SandPileModel) -> SandPileController<'a> {
         let stack = Vec::new();
         let mut is_in_stack = vec![false; model.graph.nodes.len()];
         let need_update_stack = true;
         is_in_stack[SandGraph::SINK_NODE] = true;
+        let pipeline: Vec<&'a Fn(i32, i32) -> i32> = Vec::new();
 
-        SandPileController { model, stack, is_in_stack, need_update_stack}
+        SandPileController { pipeline, model, stack, is_in_stack, need_update_stack}
+    }
+
+    pub fn set_pipeline(&mut self, pipeline: Vec<&'a Fn(i32, i32) -> i32>) {
+        self.pipeline = pipeline;
+        self.pipeline.reverse();
     }
 
     pub fn add_sand(&mut self, coords: math::Vec3d<f32>, sand_count: i32) {
@@ -82,13 +91,34 @@ impl SandPileController {
         }
     }
 
-    pub fn topple(&mut self, rounds: usize) {
+    pub fn is_relaxed(&self) -> bool {
+        (! self.need_update_stack) && self.stack.is_empty()
+    }
+
+    fn change_sand_by_function(&mut self, f: &Fn(i32, i32) -> i32) {
+        for node_idx in self.model.graph.non_sink_nodes() {
+            let current_sand = self.model.graph.nodes[node_idx].sand.get();
+            let degree = self.model.graph.nodes[node_idx].degree;
+            let new_sand = f(current_sand, degree);
+            self.model.graph.nodes[node_idx].sand.set(new_sand);
+        }
+        self.need_update_stack = true;
+    }
+
+    pub fn update(&mut self) {
         if self.need_update_stack {
             self.update_stack();
         }
 
+        if self.is_relaxed() {
+            if let Some(func) = self.pipeline.pop() {
+                self.change_sand_by_function(&func);
+            }
+            return;
+        }
+
         let graph = & self.model.graph;
-        for _ in 0..rounds {
+        for _ in 0..Self::TOPPLE_ROUNDS {
             if let Some(node_idx) = self.stack.pop() {
                 let node = &graph.nodes[node_idx];
                 for (weight, neighbour_node_idx) in graph.successors(node_idx) {
@@ -99,8 +129,6 @@ impl SandPileController {
                 }
                 node.sand.set(node.sand.get() - node.degree);
                 self.is_in_stack[node_idx] = false;
-
-
 
                 SandPileController::add_node_to_stack_if_needed(&mut self.stack, &mut self.is_in_stack, node, node_idx);
             } else {

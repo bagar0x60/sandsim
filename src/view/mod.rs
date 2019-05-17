@@ -49,6 +49,10 @@ impl<C: CameraController> SandPileView<C> {
     pub const BLUE2: [f32; 4] = [0.2, 0.2, 1.0, 0.5];
     pub const BLUE3: [f32; 4] = [0.0, 0.0, 0.8, 0.7];
     pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.9];
+    pub const RED: [f32; 4] = [1.0, 0.0, 0.0, 0.5];
+    pub const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 0.5];
+
+
 
     pub fn new<F: FactoryExt<GfxResources>>(factory: &mut F,
                model: &SandPileModel,
@@ -100,7 +104,63 @@ impl<C: CameraController> SandPileView<C> {
         */
 
         if let Some(_) = e.update_args() {
-            controller.topple(1000000);
+            controller.update();
+        }
+    }
+
+    pub fn draw_tiling<W: Window>(&mut self, window: &mut PistonWindow<W>, args: RenderArgs, sandpile_model: &SandPileModel) {
+        use camera_controllers::CameraPerspective;
+
+        let draw_size = window.window.draw_size();
+
+        let projection = CameraPerspective {
+            fov: 90.0,
+            near_clip: 0.1,
+            far_clip: 2000.0,
+            aspect_ratio: (draw_size.width as f32) / (draw_size.height as f32)
+        }.projection();
+
+        let out_color = window.output_color.clone();
+        let out_depth = window.output_stencil.clone();
+
+        let view = self.camera.camera(args.ext_dt).orthogonal();
+
+        self.view_projection = vecmath::col_mat4_mul(projection, view);
+
+        for node_idx in sandpile_model.graph.non_sink_nodes() {
+            let (coords, figure_idx) = sandpile_model.embedding.get_node_info(node_idx);
+            let (vbuf, slice) = &self.figures[figure_idx];
+            let [x, y, z] = coords;
+
+            let model = [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [x, y, z, 1.0]
+            ];
+            let u_model_view_proj = vecmath::col_mat4_mul(self.view_projection, model);
+
+            let sides_count = slice.get_prim_count(gfx::Primitive::TriangleList);
+            let a_color = match sides_count {
+                _ if sides_count > 4 => Self::BLACK,
+                4 =>  Self::BLACK,
+                3 => Self::BLUE3,
+                2 => Self::GREEN,
+                1 => Self::RED,
+                _ => Self::WHITE
+            };
+
+            let (vbuf, slice) = &self.figures[figure_idx];
+
+            let data = pipe::Data {
+                vbuf: vbuf.clone(),
+                u_model_view_proj,
+                a_color,
+                out_color: out_color.clone(),
+                out_depth: out_depth.clone(),
+            };
+
+            window.encoder.draw(slice, &self.pso, &data);
         }
     }
 
@@ -113,7 +173,7 @@ impl<C: CameraController> SandPileView<C> {
         let projection = CameraPerspective {
             fov: 90.0,
             near_clip: 0.1,
-            far_clip: 1000.0,
+            far_clip: 2000.0,
             aspect_ratio: (draw_size.width as f32) / (draw_size.height as f32)
         }.projection();
 
@@ -146,12 +206,11 @@ impl<C: CameraController> SandPileView<C> {
             let [x, y, z] = coords;
 
             let model = [
-                [1.0, 0.0, 0.0, x],
-                [0.0, 1.0, 0.0, y],
-                [0.0, 0.0, 1.0, z],
-                [0.0, 0.0, 0.0, 1.0]
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [x, y, z, 1.0]
             ];
-            let model = vecmath::mat4_transposed(model);
             let u_model_view_proj = vecmath::col_mat4_mul(self.view_projection, model);
 
             /*
@@ -171,6 +230,7 @@ impl<C: CameraController> SandPileView<C> {
 
             let (vbuf, slice) = &self.figures[figure_idx];
 
+
             let data = pipe::Data {
                 vbuf: vbuf.clone(),
                 u_model_view_proj,
@@ -183,3 +243,6 @@ impl<C: CameraController> SandPileView<C> {
         }
     }
 }
+
+
+

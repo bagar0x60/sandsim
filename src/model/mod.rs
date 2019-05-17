@@ -30,6 +30,9 @@ impl SandPileModel {
         for node_idx in old_graph.non_sink_nodes() {
             let (coords, figure_idx) = old_embedding.get_node_info(node_idx);
             if region.is_point_inside_region(&coords) {
+                if old_graph.nodes[node_idx].degree == 0 {
+                    println!("0 degree new {} old: {}", node_counter + 1, node_idx);
+                }
                 node_counter += 1;
                 old_to_new_idx_map[node_idx] = node_counter;
                 new_graph.add_node();
@@ -39,6 +42,7 @@ impl SandPileModel {
 
         for old_node_idx in old_graph.non_sink_nodes() {
             let new_node_idx = old_to_new_idx_map[old_node_idx];
+
             if new_node_idx == SandGraph::SINK_NODE {
                 continue;
             }
@@ -47,7 +51,6 @@ impl SandPileModel {
                 new_graph.add_edge(new_node_idx, neighbour_new_idx, weight);
             }
         }
-
         new_embedding.unique_figures = old_embedding.unique_figures;
 
         SandPileModel {graph: new_graph, embedding: new_embedding }

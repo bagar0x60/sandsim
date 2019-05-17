@@ -86,6 +86,6 @@ impl KUniformLattice {
 
 impl Lattice for KUniformLattice {
     fn get_lattice(&self, cuboid_hull: &Cuboid) -> SandPileModel {
-        tiling_7(cuboid_hull)
+        tiling_8(cuboid_hull)
     }
 }

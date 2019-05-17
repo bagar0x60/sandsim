@@ -276,7 +276,7 @@ impl UniformTiling {
         // add nodes to graph
         let mut figure_idx_to_node_idx: Vec<NodeIndex> = Vec::new();
 
-        for _ in 0..self.figures.data.len() {
+        for _ in &self.figures.data {
             let node_idx = sand_graph.add_node();
             figure_idx_to_node_idx.push(node_idx);
         }
@@ -308,7 +308,7 @@ impl UniformTiling {
         // add all edges
 
         let mut node_neighbours: Vec<HashSet<NodeIndex>> = vec![HashSet::new(); sand_graph.nodes.len()];
-        let mut sides_count: Vec<usize> =  vec![0; sand_graph.nodes.len()];
+
 
         for (_, node_figures) in &self.vertices_info.data {
             if ! node_figures.is_complete() {
@@ -324,24 +324,20 @@ impl UniformTiling {
                 let node_1_idx = figure_idx_to_node_idx[figure_node_info_1.figure_idx];
                 let node_2_idx = figure_idx_to_node_idx[figure_node_info_2.figure_idx];
 
-                sides_count[node_1_idx] = figure_node_info_1.sides_count;
-
                 node_neighbours[node_1_idx].insert(node_2_idx);
                 node_neighbours[node_2_idx].insert(node_1_idx);
             }
         }
 
         for node_idx in sand_graph.non_sink_nodes() {
-            if sides_count[node_idx] == 0 {
-                continue;
-            }
+            let sides_count = self.figures.data[node_idx - 1].1.sides_count;
 
             for neighbour_idx in &node_neighbours[node_idx] {
                 sand_graph.add_edge(node_idx, *neighbour_idx, 1);
             }
-            if node_neighbours[node_idx].len() < sides_count[node_idx] {
+            if node_neighbours[node_idx].len() < sides_count {
                 sand_graph.add_edge(node_idx, SandGraph::SINK_NODE,
-                                    (sides_count[node_idx] - node_neighbours[node_idx].len()) as i32);
+                                    (sides_count - node_neighbours[node_idx].len()) as i32);
             }
         }
 
@@ -365,6 +361,7 @@ impl Constructor {
 
     pub fn add(&mut self, figure_idx: usize, side_idx: usize, sides_count: usize) -> usize {
         let other_figure_sides_count = self.tiling.figures.data[figure_idx].1.sides_count;
+        assert!(side_idx < other_figure_sides_count);
         let other_figure_alpha = self.tiling.figures.data[figure_idx].1.alpha;
         let vertex_idx = (side_idx + 1) % other_figure_sides_count;
 
