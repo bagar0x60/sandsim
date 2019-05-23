@@ -14,8 +14,9 @@ use glutin_window::GlutinWindow;
 use opengl_graphics::{ GlGraphics, OpenGL };
 
 use sandsim::{model::SandPileModel, view::SandPileView, controller::SandPileController};
-use sandsim::model::{lattice::{SquareLattice, HexagonLattice, TriangleLattice, CubeLattice, SemiRegularLattice, KUniformLattice},
-                     region::{Rectangle, Circle, Parallelepiped, Hexagon}};
+use sandsim::model::{lattice::{SquareLattice, HexagonLattice, TriangleLattice, CubeLattice,
+                               SemiRegularLattice, KUniformLattice, TetrahedralOctahedral},
+                     region::{Rectangle, Circle, Parallelepiped, Hexagon, Sphere}};
 use sandsim::view::camera::{ OrbitZoomCamera, OrbitZoomCameraSettings, FirstPerson, FirstPersonSettings, Camera2d };
 use piston_window::{PistonWindow, OpenGLWindow, AdvancedWindow};
 use graphics::math::Vec3d;
@@ -25,6 +26,8 @@ use sandsim::model::region::Region;
 fn main() {
     let opengl = OpenGL::V3_2;
 
+    let debug = false;
+
     let mut window: PistonWindow<GlutinWindow> =
         WindowSettings::new("SandPile", [640, 480])
             .exit_on_esc(true)
@@ -32,24 +35,25 @@ fn main() {
             .opengl(opengl)
             .build()
             .unwrap();
-    // window.set_capture_cursor(true);
 
     let mut events = Events::new(EventSettings::new()
         .ups(1000)
         .max_fps(60));
 
-    // let lattice = SemiRegularLattice::new(vec![3, 3, 3, 4, 4]);
-    // let lattice = CubeLattice::new();
-    let lattice = KUniformLattice::new();
-
+    // let lattice = SemiRegularLattice::new(vec![3, 3, 4, 3, 4]);
+    // let lattice = HexagonLattice::new();
+    let lattice = TetrahedralOctahedral::new();
+    // let lattice = KUniformLattice::new();
 
     // let region = Parallelepiped::new(200.0, 200.0, 100.0);
-    let side = 100.0_f32;
+    let side = 80.0_f32;
 
     // let region = Hexagon::new(side / 3.0_f32.powf(0.5));
-    //let region = Rectangle::new(side, side);
-    let region = Circle::new(side / 2.0);
+    // let region = Rectangle::new(side, side);
+    // let region = Circle::new(side / 2.0);
     // let region = Parallelepiped::new(side, side, side);
+    let region = Sphere::new(side / 2.0);
+
 
     let [cx, cy, cz] = region.cuboid_hull();
 
@@ -84,7 +88,7 @@ fn main() {
     // println!("{:#?}", controller.model);
 
 
-    controller.add_sand([0.5*side, 0.5*side, 0.0], 1);
+    controller.add_sand([0.3*side, 0.3*side, 0.3*side], 1);
     // controller.add_sand([0.4*side, 0.1*side, 0.0], 1);
     // controller.add_sand([0.7*side, 0.2*side, 0.0], 1);
 
@@ -97,13 +101,6 @@ fn main() {
     controller.add_sand([0.5*side, 0.4*side, 0.0], 1);
     controller.add_sand([0.5*side, 0.8*side, 0.0], 1);
     */
-
-    // controller.add_sand([100.0, 100.0, 0.0], 1);
-    // controller.add_sand([150.0, 150.0, 0.0], 1);
-    // controller.add_sand([10.0, 70.0, 0.0], 1);
-
-    // controller.add_sand([350.0, 100.0, 0.0], 1);
-    // controller.add_sand([100.0, 350.0, 0.0], 1);
 
     // window.events.set_bench_mode(true);
     window.window.make_current();
@@ -123,7 +120,15 @@ fn main() {
             window.encoder.clear(&window.output_color, [0.9, 0.9, 0.9, 0.0]);
             window.encoder.clear_depth(&window.output_stencil, 1.0);
 
-            view.draw_tiling(&mut window, args, &controller.model);
+            if ! debug {
+                view.draw(&mut window, args, &controller.model);
+            } else {
+                view.draw_tiling(&mut window, args, &controller.model);
+                view.draw_graph(&mut window, args, &controller.model);
+                view.draw_borders(&mut window, args, &controller.model);
+            }
+
+
 
             window.encoder.flush(&mut window.device);
         }

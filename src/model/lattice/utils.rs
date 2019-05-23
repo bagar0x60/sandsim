@@ -1,4 +1,4 @@
-pub const FULL_CIRCLE: usize = 720*3*2;
+pub const FULL_CIRCLE: usize = 720;
 
 use graphics::math;
 use model::SandPileModel;
@@ -348,12 +348,11 @@ impl UniformTiling {
 
 
 impl Constructor {
-    const ORIGIN: math::Vec3d<f32> = [0.0, 0.0, 0.0];
-
-    pub fn new(side_size: f32, origin_figure_sides_count: usize) -> Self {
+    pub fn new(origin: math::Vec3d<f32>, rotate_in_degrees: usize, side_size: f32, origin_figure_sides_count: usize) -> Self {
         let mut tiling = UniformTiling::new(side_size);
+        let rotate = FULL_CIRCLE * rotate_in_degrees / 360;
         let origin_figure =
-            FigureGeometricInfo::new(Self::ORIGIN, 0, side_size, origin_figure_sides_count);
+            FigureGeometricInfo::new(origin, rotate, side_size, origin_figure_sides_count);
         tiling.add_figure(origin_figure);
 
         Constructor { tiling }
@@ -380,8 +379,10 @@ impl Constructor {
     }
 }
 
-fn get_vectors_limits(v1: math::Vec3d<f32>, v2: math::Vec3d<f32>, cuboid_hull: &Cuboid) -> ((f32, f32), (f32, f32)) {
+fn get_vectors_limits(origin: math::Vec3d<f32>, v1: math::Vec3d<f32>, v2: math::Vec3d<f32>, cuboid_hull: &Cuboid) -> ((f32, f32), (f32, f32)) {
+    let [x0, y0, _] = origin;
     let ([x1, y1, _], [x2, y2, _]) = (v1, v2);
+
 
     let a = [
         [x1, x2],
@@ -413,15 +414,22 @@ fn get_vectors_limits(v1: math::Vec3d<f32>, v2: math::Vec3d<f32>, cuboid_hull: &
         v2_max = y_new.max(v2_max);
     }
 
-    ((v1_min, v1_max), (v2_min, v2_max))
+    let x0_new = x0*a_inv[0][0] + y0*a_inv[0][1];
+    let y0_new = x0*a_inv[1][0] + y0*a_inv[1][1];
+    println!("{} {}", x0_new, y0_new);
+    println!("{} {}, {} {}", v1_min, v1_max, v2_min, v2_max);
+
+
+    ((v1_min - x0_new, v1_max - x0_new), (v2_min - y0_new, v2_max - y0_new))
 }
 
 pub(super) fn continue_tiling_by_translation(uniform_tiling: &mut UniformTiling,
                                       translation_vectors: (math::Vec3d<f32>, math::Vec3d<f32>),
                                       cuboid_hull: &Cuboid) {
     let (v1, v2) = translation_vectors;
+    let origin = uniform_tiling.figures.data[0].1.center;
 
-    let ((v1_min, v1_max), (v2_min, v2_max)) = get_vectors_limits(v1, v2, cuboid_hull);
+    let ((v1_min, v1_max), (v2_min, v2_max)) = get_vectors_limits(origin, v1, v2, cuboid_hull);
 
     let base_figures_count = uniform_tiling.figures.data.len();
 
@@ -432,8 +440,9 @@ pub(super) fn continue_tiling_by_translation(uniform_tiling: &mut UniformTiling,
                 vecmath::vec3_scale(v2, j as f32),
             );
 
-            if 0.0 <= translation[0] && translation[0] <= cuboid_hull[0] &&
-                0.0 <= translation[1] && translation[1] <= cuboid_hull[1] {
+            let new_origin = vecmath::vec3_add(origin, translation);
+            if 0.0 <= new_origin[0] && new_origin[0] <= cuboid_hull[0] &&
+                0.0 <= new_origin[1] && new_origin[1] <= cuboid_hull[1] {
 
                 for figure_idx in 0..base_figures_count {
                     let center = vecmath::vec3_add(uniform_tiling.figures.data[figure_idx].1.center, translation);

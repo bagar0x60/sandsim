@@ -20,6 +20,10 @@ pub struct Circle {
     radius: f32,
 }
 
+pub struct Sphere {
+    radius: f32,
+}
+
 pub struct Hexagon {
     side: f32,
 }
@@ -59,6 +63,26 @@ impl Region for Circle {
 
     fn cuboid_hull(&self) -> Cuboid {
         [2.0*self.radius, 2.0*self.radius, 0.0]
+    }
+}
+
+impl Sphere {
+    pub fn new(radius: f32) -> Self {
+        Sphere {radius}
+    }
+}
+
+impl Region for Sphere {
+    fn is_point_inside_region(&self, point: &math::Vec3d<f32>) -> bool {
+        let [x, y, z] = point;
+
+
+        (x - self.radius).powi(2) + (y - self.radius).powi(2) + (z - self.radius).powi(2)
+            <= self.radius.powi(2)
+    }
+
+    fn cuboid_hull(&self) -> Cuboid {
+        [2.0*self.radius, 2.0*self.radius, 2.0*self.radius]
     }
 }
 

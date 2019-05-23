@@ -5,7 +5,7 @@ mod utils;
 
 
 pub use self::regular_lattice::{SquareLattice, TriangleLattice, HexagonLattice, CubeLattice};
-pub use self::uniform_lattice::{SemiRegularLattice, KUniformLattice};
+pub use self::uniform_lattice::{SemiRegularLattice, KUniformLattice, TetrahedralOctahedral};
 
 use graphics::math;
 use model::SandPileModel;

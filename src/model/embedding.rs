@@ -15,6 +15,7 @@ pub struct EmbeddingToR3 {
 pub struct Figure {
     pub vertices: Vec<math::Vec3d<f32>>,
     pub indexes: Vec<usize>,
+    pub border_indexes: Vec<usize>,
 }
 
 impl EmbeddingToR3 {
@@ -65,15 +66,21 @@ impl EmbeddingToR3 {
 
 impl Figure {
     pub fn convex_polygon(vertices: Vec<Vec3d<f32>>) -> Self {
-        assert!(vertices.len() > 2, "convex polygon have to have at least 3 vertices to triangulate");
+        let vertices_count = vertices.len();
+        assert!(vertices_count > 2, "convex polygon have to have at least 3 vertices to triangulate");
         // fan triangulation
         // 0, 1, 2; 0, 2, 3; 0, 3, 4; ...
         let mut indexes: Vec<usize> = Vec::new();
-        for i in 1..vertices.len() - 1 {
+        for i in 1..vertices_count - 1 {
             indexes.append(&mut vec![0, i, i + 1]);
         }
 
-        Figure { vertices, indexes }
+        let mut border_indexes: Vec<usize> = Vec::new();
+        for i in 0..vertices_count {
+            border_indexes.append(&mut vec![i, (i + 1) % vertices_count]);
+        }
+
+        Figure { vertices, indexes, border_indexes }
     }
 
     pub fn polygon_on_circle(radius: f32, vertices_count: usize, angle_offset: f32, angle_between: f32) -> Self {
