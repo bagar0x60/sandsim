@@ -427,6 +427,7 @@ pub(super) fn continue_tiling_by_translation(uniform_tiling: &mut UniformTiling,
                                       translation_vectors: (math::Vec3d<f32>, math::Vec3d<f32>),
                                       cuboid_hull: &Cuboid) {
     let (v1, v2) = translation_vectors;
+    println!("v1 = {:?} v2 = {:?}", v1, v2);
     let origin = uniform_tiling.figures.data[0].1.center;
 
     let ((v1_min, v1_max), (v2_min, v2_max)) = get_vectors_limits(origin, v1, v2, cuboid_hull);

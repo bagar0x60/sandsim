@@ -54,7 +54,7 @@ impl<C: CameraController> SandPileView<C> {
     pub const BLUE3: [f32; 4] = [0.0, 0.0, 0.8, 0.7];
     pub const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 0.9];
     pub const RED: [f32; 4] = [1.0, 0.0, 0.0, 0.5];
-    pub const GREEN: [f32; 4] = [0.0, 1.0, 0.0, 0.5];
+    pub const GREEN: [f32; 4] = [0.0, 0.5, 0.0, 0.5];
     pub const YELLOW: [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
 
@@ -150,7 +150,7 @@ impl<C: CameraController> SandPileView<C> {
     fn build_line_pso<F: FactoryExt<GfxResources>>(factory: &mut F) -> PipelineState<GfxResources, pipe::Meta> {
         //set fillmode
         let mut fillmode = gfx::state::Rasterizer::new_fill();
-        fillmode.method = gfx::state::RasterMethod::Line(1);
+        fillmode.method = gfx::state::RasterMethod::Line(60);
         //import shader
         let vs = include_bytes!("../../shaders/main_150.glslv");
         let fs = include_bytes!("../../shaders/main_150.glslf");
@@ -197,7 +197,7 @@ impl<C: CameraController> SandPileView<C> {
         let out_depth = window.output_stencil.clone();
 
         let u_model_view_proj = self.view_projection;
-        let a_color = Self::RED;
+        let a_color = Self::GREEN;
 
         let (vbuf, slice) = &self.graph_lines;
 
@@ -265,7 +265,9 @@ impl<C: CameraController> SandPileView<C> {
             ];
             let u_model_view_proj = vecmath::col_mat4_mul(self.view_projection, model);
 
-            let sides_count = slice.get_prim_count(gfx::Primitive::TriangleList);
+            let sides_count = slice.get_prim_count(gfx::Primitive::TriangleList) as f32;
+            let a_color = [0.02*sides_count + 0.3, 0.02*sides_count + 0.3, 0.05*sides_count + 0.3, 1.0];
+            /*
             let a_color = match sides_count {
                 _ if sides_count > 4 => Self::GREEN,
                 4 =>  Self::YELLOW,
@@ -274,6 +276,7 @@ impl<C: CameraController> SandPileView<C> {
                 1 => Self::RED,
                 _ => Self::WHITE
             };
+            */
 
             let (vbuf, slice) = &self.figures[figure_idx];
 
@@ -313,9 +316,16 @@ impl<C: CameraController> SandPileView<C> {
                 _ => Self::WHITE
             };
 
+            let a_color = Self::BLACK;
+
             let (coords, figure_idx) = sandpile_model.embedding.get_node_info(node_idx);
             let (vbuf, slice) = &self.figures[figure_idx];
             let [x, y, z] = coords;
+            /*
+            if (x-30.0).powf(2.0) + (y-30.0) .powf(2.0) <= z.powf(2.0) / 10.0 {
+                continue;
+            }
+            */
 
             let model = [
                 [1.0, 0.0, 0.0, 0.0],

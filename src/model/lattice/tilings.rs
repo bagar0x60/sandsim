@@ -83,6 +83,7 @@ pub(super) fn tiling_2(cuboid_hull: &Cuboid, rotate_in_degrees: usize) -> SandPi
     // 2-uniform
     // [3^6; 3^2.4.3.4]
     // p6m, *632
+    // rotate = 90
 
     let origin = vecmath::vec3_scale(*cuboid_hull, 0.5);
     let mut constructor = Constructor::new(origin, rotate_in_degrees, 1.0, 3);
@@ -148,10 +149,10 @@ pub(super) fn tiling_4(cuboid_hull: &Cuboid, rotate_in_degrees: usize) -> SandPi
 }
 
 pub(super) fn tiling_5(cuboid_hull: &Cuboid, rotate_in_degrees: usize) -> SandPileModel {
-    // -15 angle
     // uniform
     // [3^3.4^2; 3^2.4.3.4]_2
     // pgg, 22×
+    // rotate = -85
     let origin = vecmath::vec3_scale(*cuboid_hull, 0.5);
     let mut constructor = Constructor::new(origin, rotate_in_degrees, 1.0, 4);
 
@@ -209,11 +210,18 @@ pub(super) fn tiling_7(cuboid_hull: &Cuboid, rotate_in_degrees: usize) -> SandPi
     // [3^3.4^2; 3^2.4.3.4; 4^4]
     // p4
     let origin = vecmath::vec3_scale(*cuboid_hull, 0.5);
-    let mut constructor = Constructor::new(origin, rotate_in_degrees,1.0, 6);
+    let mut constructor = Constructor::new(origin, rotate_in_degrees,1.0, 4);
 
-
-    // ((((
-
+    for i in 0..3 {
+        constructor.add(i, 3, 4);
+    }
+    for i in 0..4 {
+        constructor.add(i, 1, 3);
+        constructor.add(i, 2, 3);
+    }
+    constructor.add(10, 2, 4);
+    constructor.add(12, 2, 3);
+    constructor.add(9, 2, 3);
 
     let v1 = constructor.get_vector(6, 13);
     let v2 = constructor.get_vector(5, 14);

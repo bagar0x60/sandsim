@@ -40,19 +40,21 @@ fn main() {
         .ups(1000)
         .max_fps(60));
 
-    // let lattice = SemiRegularLattice::new(vec![3, 3, 4, 3, 4]);
+    // let lattice = SemiRegularLattice::new(vec![3, 4, 6, 4]);
+    // let lattice = SquareLattice::new();
     // let lattice = HexagonLattice::new();
-    let lattice = TetrahedralOctahedral::new();
-    // let lattice = KUniformLattice::new();
+    // let lattice = TetrahedralOctahedral::new();
+    let lattice = KUniformLattice::new();
 
     // let region = Parallelepiped::new(200.0, 200.0, 100.0);
-    let side = 80.0_f32;
+    let side = 100.0_f32;
+    println!("h = {}", 2.0 / side);
 
     // let region = Hexagon::new(side / 3.0_f32.powf(0.5));
     // let region = Rectangle::new(side, side);
-    // let region = Circle::new(side / 2.0);
+    let region = Circle::new(side / 2.0);
     // let region = Parallelepiped::new(side, side, side);
-    let region = Sphere::new(side / 2.0);
+    // let region = Sphere::new(side / 2.0);
 
 
     let [cx, cy, cz] = region.cuboid_hull();
@@ -66,7 +68,12 @@ fn main() {
         [cx / 2.0, cy / 2.0, cz / 2.0],
         OrbitZoomCameraSettings::default().zoom_speed(10.0)
     );
-    orbital.distance = side / 1.6;
+    if debug {
+        orbital.distance = 5.0;
+    } else {
+        orbital.distance = side / 1.6;
+    }
+
 
     let camera = orbital;
 
@@ -88,7 +95,12 @@ fn main() {
     // println!("{:#?}", controller.model);
 
 
-    controller.add_sand([0.3*side, 0.3*side, 0.3*side], 1);
+    controller.add_sand([0.4*side, 0.4*side,  0.4*side], 1);
+    // controller.add_sand([0.3*side, 0.2*side,  0.0], 1);
+    // controller.add_sand([0.25*side, 0.35*side,  0.0*side], 1);
+
+    // controller.add_sand([0.8*side, 0.7*side,  0.3*side], 1);
+
     // controller.add_sand([0.4*side, 0.1*side, 0.0], 1);
     // controller.add_sand([0.7*side, 0.2*side, 0.0], 1);
 
@@ -117,15 +129,15 @@ fn main() {
             */
 
 
-            window.encoder.clear(&window.output_color, [0.9, 0.9, 0.9, 0.0]);
+            window.encoder.clear(&window.output_color, [1.0, 1.0, 1.0, 0.0]);
             window.encoder.clear_depth(&window.output_stencil, 1.0);
 
             if ! debug {
                 view.draw(&mut window, args, &controller.model);
             } else {
-                view.draw_tiling(&mut window, args, &controller.model);
-                view.draw_graph(&mut window, args, &controller.model);
+                // view.draw_tiling(&mut window, args, &controller.model);
                 view.draw_borders(&mut window, args, &controller.model);
+                view.draw_graph(&mut window, args, &controller.model);
             }
 
 
